@@ -315,19 +315,17 @@
     }
 
     function renderKm(app) {
-      const dates = monthDays(state.year, state.month).filter(date => date <= todayISO());
-      const selected = input("date", "Dia", todayISO().startsWith(`${state.year}-${String(state.month).padStart(2, "0")}`) ? todayISO() : dates[0]);
+      const dates = monthDays(state.year, state.month);
+      const prefix = `${state.year}-${String(state.month).padStart(2, "0")}`;
+      const fallback = todayISO().startsWith(prefix) ? todayISO() : dates[0];
+      const selected = select("Dia", dates.map(date => ({ value: date, label: date === todayISO() ? `Hoje · ${dayNumber(date)} ${weekdayName(date)}` : `${dayNumber(date)} ${weekdayName(date)}` })), fallback);
       const kilometers = input("number", "Km ao pegar na carrinha", "");
       const box = card(
         h2("Quilómetros diários"),
         p("Uma leitura por dia. O abastecimento fica nesse dia.", "muted"),
         div("row", selected.label, kilometers.label, button("Guardar leitura", "green", () => saveReading(selected.field.value, kilometers.field.value)))
       );
-      const saved = rows("mileage_readings").map(record => record.payload.date).filter(date => date.startsWith(`${state.year}-${String(state.month).padStart(2, "0")}`));
-      const fuelDates = rows("fuel_entries").map(record => record.payload.date).filter(date => date.startsWith(`${state.year}-${String(state.month).padStart(2, "0")}`));
-      const shown = [...new Set([...saved, ...fuelDates])].sort();
-      for (const date of shown) box.append(kmRow(date));
-      if (!shown.length) box.append(p("Ainda não há leituras deste mês na conta.", "muted"));
+      for (const date of dates) box.append(kmRow(date));
       app.append(box);
     }
 
@@ -458,6 +456,19 @@
       if (pressed) element.setAttribute("aria-pressed", "true");
       element.addEventListener("click", action);
       return element;
+    }
+    function select(title, options, value) {
+      const field = document.createElement("select");
+      for (const option of options) {
+        const element = document.createElement("option");
+        element.value = option.value;
+        element.textContent = option.label;
+        field.append(element);
+      }
+      field.value = value || "";
+      const label = document.createElement("label");
+      label.append(document.createTextNode(title), field);
+      return { label, field };
     }
     function input(type, title, value) {
       const field = document.createElement("input");
