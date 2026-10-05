@@ -3,6 +3,9 @@ name: Publicar IPA
 on:
   push:
     branches: [main]
+    paths:
+      - HorasSalario.ipa
+      - source.json
 
 permissions:
   contents: write
