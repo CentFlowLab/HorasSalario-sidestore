@@ -99,6 +99,14 @@
       return rows(entity).filter(record => record.payload.date === date);
     }
 
+    function accountError(status, data) {
+      const code = String(data?.error_code || data?.msg || data?.message || "");
+      if (code.includes("weak_password") || String(data?.msg || "").includes("at least 6")) return "A palavra-passe tem de ter pelo menos 6 caracteres.";
+      if (code.includes("already")) return "Já existe uma conta com esse email. Usa Entrar.";
+      if (status === 429 || code.includes("rate")) return "O servidor não enviou o email de confirmação. Espera cerca de uma hora ou desliga Confirm email no projeto e tenta outra vez.";
+      return data?.msg || data?.message || data?.error_description || `O servidor respondeu ${status}.`;
+    }
+
     async function api(path, method, token, body) {
       const response = await fetch(config.url + path, {
         method,
@@ -112,7 +120,7 @@
       const text = await response.text();
       const data = text ? JSON.parse(text) : null;
       if (response.status === 401) throw new Error("A sessão expirou. Entra outra vez.");
-      if (!response.ok) throw new Error(data?.msg || data?.message || data?.error_description || `O servidor respondeu ${response.status}.`);
+      if (!response.ok) throw new Error(accountError(response.status, data));
       return data;
     }
 
