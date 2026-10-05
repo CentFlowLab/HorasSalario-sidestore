@@ -27,6 +27,17 @@
     .tabs { display: flex; gap: 8px; }
     .tabs button[aria-pressed="true"] { background: #7cdb87; color: #111; border-color: transparent; }
     .day { display: grid; gap: 8px; padding: 12px 0; border-top: 1px solid rgba(255,255,255,.08); }
+    .km-table { display: grid; gap: 0; }
+    .km-head, .km-metrics { display: grid; grid-template-columns: 52px minmax(120px, 160px) minmax(130px, 180px) 88px minmax(220px, 1fr); gap: 12px; align-items: start; }
+    .km-head { color: #9aa3ad; font-size: 11px; letter-spacing: .04em; text-transform: uppercase; padding: 12px 0 8px; border-top: 1px solid rgba(255,255,255,.08); }
+    .km-day { font-size: 22px; font-weight: 700; line-height: 1.1; }
+    .km-final { font-size: 18px; font-weight: 700; }
+    .km-head p, .km-metrics p { margin: 0; }
+    @media (max-width: 760px) {
+      .km-head { display: none; }
+      .km-metrics { grid-template-columns: 44px 1fr; }
+      .km-metrics .span { grid-column: 1 / -1; }
+    }
     .clocks { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     .status { min-height: 1.2em; }
     .fuel { background: rgba(255,255,255,.04); border-radius: 12px; padding: 10px; margin-top: 8px; }
@@ -320,28 +331,69 @@
       const fallback = todayISO().startsWith(prefix) ? todayISO() : dates[0];
       const selected = select("Dia", dates.map(date => ({ value: date, label: date === todayISO() ? `Hoje · ${dayNumber(date)} ${weekdayName(date)}` : `${dayNumber(date)} ${weekdayName(date)}` })), fallback);
       const kilometers = input("number", "Km ao pegar na carrinha", "");
+      kilometers.field.placeholder = "Ex.: 160000";
       const box = card(
         h2("Quilómetros diários"),
         p("Uma leitura por dia. O abastecimento fica nesse dia.", "muted"),
         div("row", selected.label, kilometers.label, button("Guardar leitura", "green", () => saveReading(selected.field.value, kilometers.field.value)))
       );
-      for (const date of dates) box.append(kmRow(date));
+      const shown = dates.filter(date => byDate("mileage_readings", date).length || byDate("fuel_entries", date).length || byDate("day_notes", date).length);
+      if (!shown.length) box.append(p("Ainda não há leituras deste mês na conta.", "muted"));
+      else {
+        const table = div("km-table");
+        table.append(div("km-head", text("Data"), text("Ao pegar na carrinha"), text("Km finais · automático"), text("Percorridos"), text("Notas do dia")));
+        for (const date of shown) table.append(kmRow(date));
+        box.append(table);
+      }
       app.append(box);
     }
 
     function kmRow(date) {
       const reading = byDate("mileage_readings", date)[0];
-      const next = rows("mileage_readings").map(record => record.payload).filter(item => item.date > date).sort((a, b) => a.date.localeCompare(b.date))[0];
+      const next = rows("mileage_readings").map(record => record.payload).filter(item => !item.deleted_at && item.date > date).sort((a, b) => a.date.localeCompare(b.date))[0];
       const line = div("day");
-      line.append(text(`${dayNumber(date)} ${weekdayName(date)} · ${reading ? reading.payload.kilometers + " km" : "sem leitura"}`));
-      if (reading && next && next.kilometers >= reading.payload.kilometers) line.append(p(`${next.kilometers - reading.payload.kilometers} km até à leitura de ${next.date.split("-").reverse().join("/")}`, "muted"));
-      else if (reading) line.append(p("A aguardar próxima leitura", "muted"));
-      for (const fuel of byDate("fuel_entries", date)) line.append(fuelCard(fuel));
+      const metrics = div("km-metrics");
+      const day = document.createElement("div");
+      day.append(Object.assign(document.createElement("div"), { className: "km-day", textContent: dayNumber(date) }));
+      day.append(p(weekdayName(date), "muted"));
+      metrics.append(day);
+      metrics.append(text(reading ? String(reading.payload.kilometers) : "—"));
+      const finals = document.createElement("div");
+      if (reading && next && Number(next.kilometers) >= Number(reading.payload.kilometers)) {
+        const distance = Number(next.kilometers) - Number(reading.payload.kilometers);
+        finals.append(Object.assign(document.createElement("div"), { className: "km-final", textContent: groupKm(next.kilometers) }));
+        finals.append(p(`Leitura de ${next.date.split("-").reverse().join("/")}`, "muted"));
+        metrics.append(finals);
+        metrics.append(Object.assign(document.createElement("div"), { className: "km-final", textContent: `${distance} km` }));
+      } else if (reading && next) {
+        finals.append(p("Leitura a descer. Não entra na distância.", "muted"));
+        metrics.append(finals);
+        metrics.append(text("—"));
+      } else if (reading) {
+        finals.append(p("A aguardar próxima leitura", "muted"));
+        metrics.append(finals);
+        metrics.append(text("—"));
+      } else {
+        metrics.append(text("—"));
+        metrics.append(text("—"));
+      }
+      const notes = div("span");
+      const noteRows = byDate("day_notes", date);
+      const fuels = byDate("fuel_entries", date);
+      if (!noteRows.length && !fuels.length) notes.append(p("Sem notas", "muted"));
+      for (const note of noteRows) notes.append(text(note.payload.body || ""));
+      for (const fuel of fuels) notes.append(fuelCard(fuel));
       const liters = input("text", "Litros", "");
       const paid = input("text", "Valor pago €", "");
       const odometer = input("number", "Conta-quilómetros", reading ? String(reading.payload.kilometers) : "");
-      line.append(div("row", odometer.label, liters.label, paid.label, button("Abastecimento", "plain", () => saveFuel(date, odometer.field.value, liters.field.value, paid.field.value))));
+      notes.append(div("row", odometer.label, liters.label, paid.label, button("Abastecimento", "plain", () => saveFuel(date, odometer.field.value, liters.field.value, paid.field.value))));
+      metrics.append(notes);
+      line.append(metrics);
       return line;
+    }
+
+    function groupKm(value) {
+      return String(value).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
     }
 
     function fuelCard(record) {
