@@ -7,22 +7,22 @@
       "name": "Horas e Salário",
       "bundleIdentifier": "pt.horasesalario.app",
       "developerName": "Horas e Salário",
-      "version": "1.0.21",
-      "versionDate": "2026-10-05T00:54:58Z",
-      "versionDescription": "Compilação 21. O SideStore atualiza por cima da app já instalada. Não apagues a aplicação: a base mantém-se.",
-      "downloadURL": "https://github.com/CentFlowLab/HorasSalario-sidestore/releases/download/1.0.21/HorasSalario.ipa",
+      "version": "1.0.22",
+      "versionDate": "2026-10-05T01:07:40Z",
+      "versionDescription": "Compilação 22. O SideStore atualiza por cima da app já instalada. Não apagues a aplicação: a base mantém-se.",
+      "downloadURL": "https://github.com/CentFlowLab/HorasSalario-sidestore/releases/download/1.0.22/HorasSalario.ipa",
       "localizedDescription": "Registo pessoal de horas. A atualização conserva a base neste iPhone.",
       "iconURL": "https://raw.githubusercontent.com/CentFlowLab/HorasSalario-sidestore/main/icon.png",
       "tintColor": "7CDB87",
-      "size": 755228,
+      "size": 776247,
       "screenshotURLs": [],
       "versions": [
         {
-          "version": "1.0.21",
-          "date": "2026-10-05T00:54:58Z",
-          "localizedDescription": "Compilação 21. O SideStore atualiza por cima da app já instalada. Não apagues a aplicação: a base mantém-se.",
-          "downloadURL": "https://github.com/CentFlowLab/HorasSalario-sidestore/releases/download/1.0.21/HorasSalario.ipa",
-          "size": 755228
+          "version": "1.0.22",
+          "date": "2026-10-05T01:07:40Z",
+          "localizedDescription": "Compilação 22. O SideStore atualiza por cima da app já instalada. Não apagues a aplicação: a base mantém-se.",
+          "downloadURL": "https://github.com/CentFlowLab/HorasSalario-sidestore/releases/download/1.0.22/HorasSalario.ipa",
+          "size": 776247
         }
       ]
     }
