@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Horas e Salário</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #0b0d12; color: #f4f6f8; }
+    header, main { width: min(920px, calc(100% - 32px)); margin: 0 auto; }
+    header { display: flex; justify-content: space-between; gap: 16px; align-items: end; padding: 28px 0 12px; }
+    h1 { margin: 0; font-size: 34px; }
+    .eyebrow { margin: 0 0 4px; color: #9aa3ad; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
+    button, input, select { font: inherit; color: inherit; }
+    button { cursor: pointer; }
+    .card { background: #1a1c23; border-radius: 16px; padding: 16px; margin: 12px 0; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: end; }
+    label { display: flex; flex-direction: column; gap: 6px; color: #9aa3ad; font-size: 13px; flex: 1; }
+    input, select { background: #0b0d12; border: 0; border-radius: 12px; padding: 12px; min-width: 0; }
+    .green { background: #7cdb87; color: #111; border: 0; border-radius: 14px; padding: 12px 16px; font-weight: 650; }
+    .plain { background: transparent; color: #f4f6f8; border: 1px solid rgba(255,255,255,.16); border-radius: 12px; padding: 10px 12px; }
+    .danger { background: transparent; color: #ff6b6b; border: 0; font-weight: 650; }
+    .ok { color: #7cdb87; font-size: 14px; }
+    .warn { color: #efc35a; }
+    .muted { color: #9aa3ad; }
+    .tabs { display: flex; gap: 8px; }
+    .tabs button[aria-pressed="true"] { background: #7cdb87; color: #111; border-color: transparent; }
+    .day { display: grid; gap: 8px; padding: 12px 0; border-top: 1px solid rgba(255,255,255,.08); }
+    .clocks { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .status { min-height: 1.2em; }
+    .fuel { background: rgba(255,255,255,.04); border-radius: 12px; padding: 10px; margin-top: 8px; }
+    a { color: #7cdb87; }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <p class="eyebrow">Mesma conta do iPhone</p>
+      <h1>Horas e Salário</h1>
+    </div>
+    <div id="account"></div>
+  </header>
+  <main id="app"></main>
+  <script src="config.js"></script>
+  <script>
+    const config = window.HORAS_CONFIG || { url: "", key: "" };
+    const storageKey = "horas-session";
+    const state = { session: loadSession(), records: [], tab: "horas", year: 0, month: 0, status: "", error: "" };
+
+    function loadSession() {
+      try { return JSON.parse(localStorage.getItem(storageKey) || "null"); } catch { return null; }
+    }
+    function saveSession(session) {
+      state.session = session;
+      if (session) localStorage.setItem(storageKey, JSON.stringify(session));
+      else localStorage.removeItem(storageKey);
+    }
+    function stamp() { return new Date().toISOString().replace(/\.\d{3}Z$/, "Z"); }
+    function todayISO() {
+      const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Lisbon", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+      return parts;
+    }
+    function monthDays(year, month) {
+      const count = new Date(Date.UTC(year, month, 0)).getUTCDate();
+      return Array.from({ length: count }, (_, index) => `${year}-${String(month).padStart(2, "0")}-${String(index + 1).padStart(2, "0")}`);
+    }
+    function weekday(iso) {
+      const day = new Date(`${iso}T12:00:00Z`).getUTCDay();
+      return day === 0 ? 7 : day;
+    }
+    function weekdayName(iso) {
+      return ["", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"][weekday(iso)];
+    }
+    function dayNumber(iso) { return String(Number(iso.slice(-2))); }
+    function normalizeClock(raw) {
+      const trimmed = raw.trim();
+      if (!trimmed) return "";
+      const digits = trimmed.replace(/\D/g, "");
+      if (trimmed.includes(":") && trimmed.split(":").length === 2) {
+        const [hour, minute] = trimmed.split(":").map(Number);
+        if (hour > 23 || minute > 59 || Number.isNaN(hour) || Number.isNaN(minute)) return null;
+        return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+      }
+      if (![1, 2, 3, 4].includes(digits.length) || digits !== trimmed) return null;
+      const hour = Number(digits.length > 2 ? digits.slice(0, digits.length - 2) : digits);
+      const minute = digits.length > 2 ? Number(digits.slice(-2)) : 0;
+      if (hour > 23 || minute > 59) return null;
+      return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+    }
+    function minuteOfDay(clock) {
+      const [hour, minute] = clock.split(":").map(Number);
+      return hour * 60 + minute;
+    }
+    function rows(entity) {
+      return state.records.filter(record => record.entity === entity && !record.payload.deleted_at);
+    }
+    function byDate(entity, date) {
+      return rows(entity).filter(record => record.payload.date === date);
+    }
+
+    async function api(path, method, token, body) {
+      const response = await fetch(config.url + path, {
+        method,
+        headers: {
+          apikey: config.key,
+          Authorization: `Bearer ${token || config.key}`,
+          "Content-Type": "application/json"
+        },
+        body: body ? JSON.stringify(body) : undefined
+      });
+      const text = await response.text();
+      const data = text ? JSON.parse(text) : null;
+      if (response.status === 401) throw new Error("A sessão expirou. Entra outra vez.");
+      if (!response.ok) throw new Error(data?.msg || data?.message || data?.error_description || `O servidor respondeu ${response.status}.`);
+      return data;
+    }
+
+    function sessionFrom(data, email) {
+      if (!data?.access_token || !data.user?.id) return null;
+      return {
+        userID: data.user.id,
+        email: data.user.email || email,
+        accessToken: data.access_token,
+        refreshToken: data.refresh_token,
+        expiresAt: Date.now() + (data.expires_in || 3600) * 1000
+      };
+    }
+
+    async function ensureSession() {
+      if (!state.session) return;
+      if (Date.now() < state.session.expiresAt - 60000) return;
+      const data = await api("/auth/v1/token?grant_type=refresh_token", "POST", null, { refresh_token: state.session.refreshToken });
+      const renewed = sessionFrom(data, state.session.email);
+      if (!renewed) throw new Error("A sessão expirou. Entra outra vez.");
+      saveSession(renewed);
+    }
+
+    async function loadRecords() {
+      await ensureSession();
+      const data = await api("/rest/v1/horas_records?select=entity,entity_id,payload,revision", "GET", state.session.accessToken);
+      state.records = (data || []).map(row => ({ ...row, payload: row.payload || {} }));
+    }
+
+    async function putRecord(entity, id, payload, baseRevision) {
+      const revision = payload.updated_at;
+      const operationID = `${entity}|${id}|${revision}`;
+      const result = await api("/rest/v1/rpc/horas_put", "POST", state.session.accessToken, {
+        p_operation_id: operationID,
+        p_entity: entity,
+        p_entity_id: id,
+        p_payload: payload,
+        p_revision: revision,
+        p_base_revision: baseRevision || ""
+      });
+      if (result?.status === "conflict") throw new Error("O iPhone alterou este registo entretanto. Atualiza e volta a escrever.");
+      if (result?.status !== "stored") throw new Error("A conta não confirmou este registo.");
+      await loadRecords();
+      const saved = state.records.find(record => record.entity === entity && record.entity_id === id);
+      if (!saved || saved.revision !== revision) throw new Error("A conta não devolveu o registo enviado.");
+    }
+
+    function render() {
+      const account = document.getElementById("account");
+      const app = document.getElementById("app");
+      account.replaceChildren();
+      app.replaceChildren();
+      if (!config.url.startsWith("https://") || !config.key || config.key.includes("service_role") || config.key.includes("sb_secret_")) {
+        app.append(card(p("Esta página ainda não tem o projeto da conta. Abre a app no iPhone.")));
+        return;
+      }
+      if (!state.session) { renderLogin(app); return; }
+      const now = todayISO();
+      if (!state.year) { state.year = Number(now.slice(0, 4)); state.month = Number(now.slice(5, 7)); }
+      account.append(text(state.session.email, "muted"), button("Sair", "plain", signOut));
+      app.append(toolbar(), statusLine());
+      if (state.tab === "horas") renderHours(app);
+      else renderKm(app);
+    }
+
+    function renderLogin(app) {
+      const email = input("email", "Email");
+      const password = input("password", "Palavra-passe");
+      const note = p("", "status");
+      app.append(card(
+        h2("Entrar na mesma conta"),
+        p("Usa o email da app do iPhone. Os registos aparecem aqui depois de o iPhone sincronizar pelo menos uma vez.", "muted"),
+        email.label, password.label,
+        div("row", button("Entrar", "green", () => auth("in", email.field, password.field, note)), button("Criar conta", "plain", () => auth("up", email.field, password.field, note)), button("Recuperar palavra-passe", "plain", () => auth("recover", email.field, password.field, note))),
+        note
+      ));
+    }
+
+    async function auth(kind, emailField, passwordField, note) {
+      note.textContent = "";
+      try {
+        const email = emailField.value.trim();
+        const password = passwordField.value;
+        if (kind === "recover") {
+          await api("/auth/v1/recover", "POST", null, { email });
+          note.textContent = "Se existir uma conta com esse email, chega uma mensagem para definir outra palavra-passe.";
+          return;
+        }
+        const path = kind === "up" ? "/auth/v1/signup" : "/auth/v1/token?grant_type=password";
+        const data = await api(path, "POST", null, { email, password });
+        const session = sessionFrom(data, email);
+        if (!session) {
+          note.textContent = "A conta foi criada. Confirma o email antes de entrar.";
+          return;
+        }
+        saveSession(session);
+        await refresh();
+      } catch (error) {
+        note.textContent = error.message;
+      }
+    }
+
+    function toolbar() {
+      const names = ["", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+      return div("row",
+        button("‹", "plain", () => shiftMonth(-1)),
+        text(`${names[state.month]} ${state.year}`),
+        button("›", "plain", () => shiftMonth(1)),
+        button("Horas", "plain", () => { state.tab = "horas"; render(); }, state.tab === "horas"),
+        button("Quilómetros", "plain", () => { state.tab = "km"; render(); }, state.tab === "km"),
+        button("Atualizar", "plain", refresh)
+      );
+    }
+
+    function shiftMonth(delta) {
+      const date = new Date(Date.UTC(state.year, state.month - 1 + delta, 1));
+      state.year = date.getUTCFullYear();
+      state.month = date.getUTCMonth() + 1;
+      render();
+    }
+
+    function renderHours(app) {
+      const box = card(h2("Folha"), p("0830 passa a 08:30. Uma saída menor ou igual à entrada termina no dia seguinte. Grava o dia e depois abre a app no iPhone para a sincronização trazer a alteração.", "muted"));
+      for (const date of monthDays(state.year, state.month)) {
+        if (date > todayISO() && weekday(date) === 7) continue;
+        box.append(hourRow(date));
+      }
+      app.append(box);
+    }
+
+    function hourRow(date) {
+      const day = byDate("work_days", date)[0];
+      const periods = rows("work_periods").filter(record => record.payload.work_day_id === day?.entity_id).sort((a, b) => String(a.payload.start_clock).localeCompare(String(b.payload.start_clock)));
+      const fields = [0, 1, 2, 3].map(index => {
+        const period = periods[Math.floor(index / 2)];
+        const value = period ? (index % 2 === 0 ? period.payload.start_clock : period.payload.end_clock || "") : "";
+        return input("text", index % 2 === 0 ? "Entrada" : "Saída", value || "");
+      });
+      const line = div("day");
+      line.append(text(`${dayNumber(date)} ${weekdayName(date)}`));
+      line.append(div("clocks", fields[0].label, fields[1].label));
+      line.append(div("clocks", fields[2].label, fields[3].label));
+      line.append(button("Guardar dia", "green", () => saveDay(date, day, periods, fields.map(item => item.field.value))));
+      return line;
+    }
+
+    async function saveDay(date, day, periods, values) {
+      const clocks = values.map(normalizeClock);
+      if (clocks.includes(null)) { state.error = "Há uma hora inválida."; render(); return; }
+      const pairs = [[clocks[0], clocks[1]], [clocks[2], clocks[3]]];
+      try {
+        await ensureSession();
+        const now = stamp();
+        let dayRecord = day;
+        if (!dayRecord) {
+          const id = crypto.randomUUID();
+          const payload = { id, date, is_day_off: 0, is_absence: 0, sunday_unlocked: weekday(date) === 7 ? 1 : 0, notes: "", created_at: now, updated_at: now, deleted_at: null };
+          await putRecord("work_days", id, payload, "");
+          dayRecord = state.records.find(record => record.entity_id === id);
+        } else if (weekday(date) === 7 && !dayRecord.payload.sunday_unlocked) {
+          const payload = { ...dayRecord.payload, sunday_unlocked: 1, updated_at: now };
+          await putRecord("work_days", dayRecord.entity_id, payload, dayRecord.revision);
+          dayRecord = state.records.find(record => record.entity_id === dayRecord.entity_id);
+        }
+        for (let index = 0; index < pairs.length; index += 1) {
+          const [start, end] = pairs[index];
+          const existing = periods[index];
+          if (!start && !end) {
+            if (existing) {
+              const payload = { ...existing.payload, deleted_at: now, updated_at: now };
+              await putRecord("work_periods", existing.entity_id, payload, existing.revision);
+            }
+            continue;
+          }
+          if (!start || !end) throw new Error("Cada período precisa de entrada e saída.");
+          const endsNext = minuteOfDay(end) <= minuteOfDay(start) ? 1 : 0;
+          if (existing) {
+            const payload = { ...existing.payload, start_clock: start, end_clock: end, ends_next_day: endsNext, start_instant: lisbonInstant(date, start, 0), end_instant: lisbonInstant(date, end, endsNext), updated_at: now, deleted_at: null };
+            await putRecord("work_periods", existing.entity_id, payload, existing.revision);
+          } else {
+            const id = crypto.randomUUID();
+            const payload = { id, work_day_id: dayRecord.entity_id, start_clock: start, end_clock: end, ends_next_day: endsNext, start_instant: lisbonInstant(date, start, 0), end_instant: lisbonInstant(date, end, endsNext), created_at: now, updated_at: now, deleted_at: null };
+            await putRecord("work_periods", id, payload, "");
+          }
+        }
+        state.error = "";
+        state.status = "Guardado na conta.";
+      } catch (error) {
+        state.error = error.message;
+      }
+      render();
+    }
+
+    function renderKm(app) {
+      const dates = monthDays(state.year, state.month).filter(date => date <= todayISO());
+      const selected = input("date", "Dia", todayISO().startsWith(`${state.year}-${String(state.month).padStart(2, "0")}`) ? todayISO() : dates[0]);
+      const kilometers = input("number", "Km ao pegar na carrinha", "");
+      const box = card(
+        h2("Quilómetros diários"),
+        p("Uma leitura por dia. O abastecimento fica nesse dia.", "muted"),
+        div("row", selected.label, kilometers.label, button("Guardar leitura", "green", () => saveReading(selected.field.value, kilometers.field.value)))
+      );
+      const saved = rows("mileage_readings").map(record => record.payload.date).filter(date => date.startsWith(`${state.year}-${String(state.month).padStart(2, "0")}`));
+      const fuelDates = rows("fuel_entries").map(record => record.payload.date).filter(date => date.startsWith(`${state.year}-${String(state.month).padStart(2, "0")}`));
+      const shown = [...new Set([...saved, ...fuelDates])].sort();
+      for (const date of shown) box.append(kmRow(date));
+      if (!shown.length) box.append(p("Ainda não há leituras deste mês na conta.", "muted"));
+      app.append(box);
+    }
+
+    function kmRow(date) {
+      const reading = byDate("mileage_readings", date)[0];
+      const next = rows("mileage_readings").map(record => record.payload).filter(item => item.date > date).sort((a, b) => a.date.localeCompare(b.date))[0];
+      const line = div("day");
+      line.append(text(`${dayNumber(date)} ${weekdayName(date)} · ${reading ? reading.payload.kilometers + " km" : "sem leitura"}`));
+      if (reading && next && next.kilometers >= reading.payload.kilometers) line.append(p(`${next.kilometers - reading.payload.kilometers} km até à leitura de ${next.date.split("-").reverse().join("/")}`, "muted"));
+      else if (reading) line.append(p("A aguardar próxima leitura", "muted"));
+      for (const fuel of byDate("fuel_entries", date)) line.append(fuelCard(fuel));
+      const liters = input("text", "Litros", "");
+      const paid = input("text", "Valor pago €", "");
+      const odometer = input("number", "Conta-quilómetros", reading ? String(reading.payload.kilometers) : "");
+      line.append(div("row", odometer.label, liters.label, paid.label, button("Abastecimento", "plain", () => saveFuel(date, odometer.field.value, liters.field.value, paid.field.value))));
+      return line;
+    }
+
+    function fuelCard(record) {
+      const fuel = record.payload;
+      const box = div("fuel");
+      const parts = [`${fuel.odometer_km} km`];
+      if (fuel.liters_milli != null) parts.push(`${formatMilli(fuel.liters_milli)} L`);
+      if (fuel.paid_cents != null) parts.push(`${formatCents(fuel.paid_cents)} pagos`);
+      if (fuel.tank_full) parts.push("Depósito cheio");
+      box.append(text("Abastecimento — " + parts.join(" · ")));
+      box.append(button("Eliminar", "danger", () => removeFuel(record)));
+      return box;
+    }
+
+    async function saveReading(date, kilometers) {
+      const value = Number(kilometers);
+      if (!date || !Number.isInteger(value) || value < 0) { state.error = "A leitura tem de ser um número inteiro. Zero é válido."; render(); return; }
+      try {
+        await ensureSession();
+        const existing = byDate("mileage_readings", date)[0];
+        const now = stamp();
+        if (existing) {
+          await putRecord("mileage_readings", existing.entity_id, { ...existing.payload, kilometers: value, updated_at: now, deleted_at: null }, existing.revision);
+        } else {
+          const id = crypto.randomUUID();
+          await putRecord("mileage_readings", id, { id, date, kilometers: value, created_at: now, updated_at: now, deleted_at: null }, "");
+        }
+        state.error = "";
+        state.status = "Guardado na conta.";
+      } catch (error) { state.error = error.message; }
+      render();
+    }
+
+    async function saveFuel(date, odometer, liters, paid) {
+      const km = Number(odometer);
+      if (!Number.isInteger(km)) { state.error = "O conta-quilómetros tem de ser um número inteiro."; render(); return; }
+      try {
+        await ensureSession();
+        const now = stamp();
+        const id = crypto.randomUUID();
+        await putRecord("fuel_entries", id, {
+          id, date, clock: null, odometer_km: km,
+          liters_milli: milli(liters, 1000), pump_milli: null, discounted_milli: null,
+          paid_cents: milli(paid, 100), paid_is_manual: milli(paid, 100) == null ? 0 : 1,
+          tank_full: 1, created_at: now, updated_at: now, deleted_at: null
+        }, "");
+        state.error = "";
+        state.status = "Guardado na conta.";
+      } catch (error) { state.error = error.message; }
+      render();
+    }
+
+    async function removeFuel(record) {
+      try {
+        await ensureSession();
+        const now = stamp();
+        await putRecord("fuel_entries", record.entity_id, { ...record.payload, deleted_at: now, updated_at: now }, record.revision);
+        state.status = "Guardado na conta.";
+        state.error = "";
+      } catch (error) { state.error = error.message; }
+      render();
+    }
+
+    async function refresh() {
+      try {
+        await loadRecords();
+        state.error = "";
+        state.status = state.records.length ? "Lido da conta." : "A conta ainda não tem registos. No iPhone, entra com este email e sincroniza.";
+      } catch (error) {
+        state.error = error.message;
+        if (String(error.message).includes("sessão")) saveSession(null);
+      }
+      render();
+    }
+
+    function signOut() { saveSession(null); state.records = []; state.status = ""; state.error = ""; render(); }
+
+    function lisbonInstant(iso, clock, plusDays) {
+      const [year, month, day] = iso.split("-").map(Number);
+      const [hour, minute] = clock.split(":").map(Number);
+      const utcGuess = new Date(Date.UTC(year, month - 1, day + plusDays, hour, minute, 0));
+      const offset = lisbonOffset(utcGuess);
+      return new Date(utcGuess.getTime() - offset).toISOString().replace(/\.\d{3}Z$/, "Z");
+    }
+    function lisbonOffset(date) {
+      const name = new Intl.DateTimeFormat("en-US", { timeZone: "Europe/Lisbon", timeZoneName: "shortOffset" }).formatToParts(date).find(part => part.type === "timeZoneName")?.value || "GMT";
+      const match = name.match(/GMT([+-])(\d{1,2})(?::(\d{2}))?/);
+      if (!match) return 0;
+      const sign = match[1] === "-" ? -1 : 1;
+      return sign * (Number(match[2]) * 60 + Number(match[3] || 0)) * 60000;
+    }
+    function milli(text, scale) {
+      const value = String(text || "").trim().replace(",", ".");
+      if (!value) return null;
+      const number = Number(value);
+      if (!Number.isFinite(number)) return null;
+      return Math.round(number * scale);
+    }
+    function formatMilli(value) { return `${Math.trunc(value / 1000)},${String(Math.abs(value % 1000)).padStart(3, "0")}`; }
+    function formatCents(value) { return `${Math.trunc(value / 100)},${String(Math.abs(value % 100)).padStart(2, "0")} €`; }
+
+    function card(...nodes) { const element = document.createElement("section"); element.className = "card"; element.append(...nodes.flat()); return element; }
+    function h2(value) { const element = document.createElement("h2"); element.textContent = value; return element; }
+    function p(value, className) { const element = document.createElement("p"); element.textContent = value; if (className) element.className = className; return element; }
+    function text(value, className) { return p(value, className); }
+    function div(className, ...nodes) { const element = document.createElement("div"); element.className = className; element.append(...nodes.flat()); return element; }
+    function button(title, className, action, pressed) {
+      const element = document.createElement("button");
+      element.type = "button";
+      element.className = className;
+      element.textContent = title;
+      if (pressed) element.setAttribute("aria-pressed", "true");
+      element.addEventListener("click", action);
+      return element;
+    }
+    function input(type, title, value) {
+      const field = document.createElement("input");
+      field.type = type;
+      field.value = value || "";
+      if (type === "number") field.inputMode = "numeric";
+      const label = document.createElement("label");
+      label.append(document.createTextNode(title), field);
+      return { label, field };
+    }
+    function statusLine() {
+      const element = p(state.error || state.status, state.error ? "warn status" : "ok status");
+      return element;
+    }
+
+    if (state.session) refresh(); else render();
+  </script>
+</body>
+</html>
