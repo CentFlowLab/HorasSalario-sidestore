@@ -3,7 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Horas e Salário</title>
+  <title>Nexo</title>
+  <link rel="icon" href="favicon.png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <style>
     :root {
       color-scheme: dark;
@@ -30,7 +32,8 @@
     .shell { display: grid; grid-template-columns: 232px 1fr; min-height: 100vh; }
     .sidebar { background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; gap: 4px; padding: 20px 14px; position: sticky; top: 0; height: 100vh; }
     .brand { display: flex; align-items: center; gap: 10px; padding: 4px 8px 16px; }
-    .brand .logo { width: 34px; height: 34px; border-radius: 9px; background: var(--green); color: #0b0d12; font-weight: 800; display: grid; place-items: center; }
+    .brand .logo { width: 34px; height: 34px; border-radius: 9px; background: #0b0d12; overflow: hidden; padding: 0; }
+    .brand .logo img { width: 100%; height: 100%; object-fit: cover; display: block; }
     .brand .eyebrow { color: var(--muted); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
     .brand strong { font-size: 15px; }
     .nav button { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: transparent; border: 0; border-radius: 10px; padding: 10px 12px; color: var(--muted); font-weight: 600; }
@@ -177,7 +180,9 @@
       status: "", error: "",
       drafts: {},        // { date: {e1,s1,e2,s2} } rascunhos preservados
       rowStatus: {},     // { date: {kind, text} }
-      savingDate: null
+      savingDate: null,
+      importPlan: null,  // pré-visualização; só grava depois de confirmares
+      importBusy: false
     };
 
     /* ------- sessão e utilidades ------- */
@@ -356,9 +361,14 @@
     function sidebar() {
       const bar = div("sidebar");
       const brand = div("brand");
-      brand.append(div("logo", text("H")));
+      const logo = div("logo");
+      const img = document.createElement("img");
+      img.src = "nexo-icon.png";
+      img.alt = "Nexo";
+      logo.append(img);
+      brand.append(logo);
       const bt = div("");
-      bt.append(p("Mesma conta do iPhone", "eyebrow"), el("strong", "Horas e Salário"));
+      bt.append(p("Mesma conta do iPhone", "eyebrow"), el("strong", "Nexo"));
       brand.append(bt);
       bar.append(brand);
 
@@ -372,6 +382,7 @@
 
       const foot = div("side-foot");
       foot.append(p(state.session.email, "who"));
+      foot.append(button("Importar JSON", "ghost", pickImportFile));
       foot.append(button("Sair", "ghost", signOut));
       bar.append(foot);
       return bar;
@@ -392,6 +403,7 @@
       );
       head.append(titleBox, ms);
       main.append(head, statusBar());
+      if (state.importPlan) main.append(importCard());
 
       if (state.tab === "horas") renderHours(main);
       else renderKm(main);
@@ -422,7 +434,7 @@
       const password = input("password", "Palavra-passe");
       const note = p("", "msg");
       return card(
-        h2("Entrar na mesma conta"),
+        h2("Entrar no Nexo"),
         p("Usa o email da app do iPhone. Os registos aparecem aqui depois de o iPhone sincronizar pelo menos uma vez.", "muted"),
         email.label, password.label,
         div("row",
@@ -446,6 +458,171 @@
         saveSession(session);
         await refresh();
       } catch (error) { note.textContent = error.message; }
+    }
+
+    /* ------- Importação JSON (mesmo formato da app iOS) ------- */
+    function pickImportFile() {
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = "application/json,.json";
+      input.addEventListener("change", async () => {
+        const file = input.files && input.files[0];
+        if (!file) return;
+        try {
+          const text = await file.text();
+          state.importPlan = buildImportPlan(JSON.parse(text));
+          state.error = "";
+          state.status = "Pré-visualização pronta. Nada foi gravado.";
+        } catch (error) {
+          state.importPlan = null;
+          state.error = error.message || "O ficheiro não é uma exportação reconhecida.";
+        }
+        render();
+      });
+      input.click();
+    }
+    function buildImportPlan(object) {
+      const format = object && object.format;
+      if (format !== "horas-e-salario-export" && format !== "horas-e-salario-ios") {
+        throw new Error("O ficheiro não é uma exportação reconhecida.");
+      }
+      const tables = object.tables || {};
+      const days = (tables.work_days || []).filter(row => !row.deleted_at);
+      const periods = (tables.work_periods || []).filter(row => !row.deleted_at && row.start_clock && row.end_clock);
+      const dayById = Object.fromEntries(days.map(row => [row.id, row]));
+      const byDay = {};
+      for (const row of days) byDay[row.date] = { day: row, periods: [] };
+      let review = null;
+      for (const period of periods) {
+        const day = dayById[period.work_day_id];
+        if (!day || !byDay[day.date]) continue;
+        if (day.date === "2026-09-02" && period.start_clock === "18:30") {
+          review = { date: day.date, start: period.start_clock, fileEnd: period.end_clock, alternateEnd: period.end_clock === "00:00" ? "22:00" : "00:00", period };
+          continue;
+        }
+        byDay[day.date].periods.push(period);
+      }
+      const existingPeriods = rows("work_periods");
+      let ready = 0, duplicates = 0, conflicts = 0;
+      const items = [];
+      for (const date of Object.keys(byDay).sort()) {
+        const entry = byDay[date];
+        const liveDay = byDate("work_days", date)[0];
+        const liveList = liveDay
+          ? existingPeriods.filter(r => r.payload.work_day_id === liveDay.entity_id)
+          : [];
+        const classified = entry.periods.map(period => {
+          const same = liveList.find(r => r.payload.start_clock === period.start_clock && r.payload.end_clock === period.end_clock);
+          if (same) { duplicates += 1; return { period, kind: "duplicate" }; }
+          const clash = liveList.find(r => r.payload.start_clock === period.start_clock && r.payload.end_clock !== period.end_clock);
+          if (clash) { conflicts += 1; return { period, kind: "conflict", existingEnd: clash.payload.end_clock }; }
+          ready += 1;
+          return { period, kind: "ready" };
+        });
+        items.push({ date, day: entry.day, classified, editing: !!state.drafts[date] });
+      }
+      return { items, review, choice: null, ready, duplicates, conflicts, name: object.source?.origin || format };
+    }
+    function importCard() {
+      const plan = state.importPlan;
+      const box = card();
+      box.append(h2("Importar JSON"));
+      box.append(p("A gravação só acontece depois de confirmares. Os campos que estás a editar não são substituídos. Uma segunda importação não duplica períodos iguais.", "muted"));
+      box.append(p(`${plan.ready} períodos prontos · ${plan.duplicates} duplicados · ${plan.conflicts} conflitos`, "muted"));
+      if (plan.review) {
+        const item = plan.review;
+        box.append(p(`02/09 ${item.start}. No ficheiro: ${item.fileEnd}. A outra leitura: ${item.alternateEnd}.`, "muted"));
+        box.append(p("22:00 é a base Brave. 00:00 é o PDF original. Nenhuma é aplicada sozinha.", "muted"));
+        const row = div("row");
+        row.append(
+          button("Conferir 22:00", plan.choice === "22:00" ? "green" : "plain", () => { plan.choice = "22:00"; render(); }),
+          button("Conferir 00:00", plan.choice === "00:00" ? "green" : "plain", () => { plan.choice = "00:00"; render(); })
+        );
+        box.append(row);
+      }
+      const actions = div("row");
+      const save = button(state.importBusy ? "A guardar…" : "Gravar na conta", "green", () => applyImport());
+      save.disabled = state.importBusy || (plan.review && !plan.choice);
+      actions.append(save, button("Cancelar", "plain", () => { state.importPlan = null; render(); }));
+      box.append(actions);
+      return box;
+    }
+    async function applyImport() {
+      const plan = state.importPlan;
+      if (!plan || state.importBusy) return;
+      if (plan.review && !plan.choice) {
+        state.error = "02/09 ainda está por conferir. Escolhe 22:00 ou 00:00 antes de gravar.";
+        render();
+        return;
+      }
+      state.importBusy = true;
+      state.status = "A guardar…";
+      state.error = "";
+      render();
+      let stored = 0, skipped = 0;
+      try {
+        await ensureSession();
+        for (const item of plan.items) {
+          if (state.drafts[item.date]) { skipped += 1; continue; }
+          const ready = item.classified.filter(c => c.kind === "ready").map(c => c.period);
+          await importOneDay(item.day, ready, item.date);
+          stored += ready.length;
+        }
+        if (plan.review && plan.choice) {
+          const day = plan.items.find(i => i.date === "2026-09-02")?.day;
+          if (day && !state.drafts["2026-09-02"]) {
+            const period = { ...plan.review.period, end_clock: plan.choice, ends_next_day: plan.choice === "00:00" ? 1 : 0 };
+            await importOneDay(day, [period], "2026-09-02");
+            stored += 1;
+          }
+        }
+        state.importPlan = null;
+        state.status = "Alterações guardadas na conta.";
+        await refresh();
+        state.status = `Alterações guardadas na conta. ${stored} períodos importados${skipped ? `, ${skipped} dias em edição mantidos` : ""}.`;
+      } catch (error) {
+        state.error = error.message;
+        state.status = "";
+      }
+      state.importBusy = false;
+      render();
+    }
+    async function importOneDay(dayRow, periods, date) {
+      const now = stamp();
+      let dayRecord = byDate("work_days", date)[0];
+      const off = dayRow.is_day_off ? 1 : 0;
+      const absence = dayRow.is_absence ? 1 : 0;
+      const sunday = weekday(date) === 7;
+      if (!dayRecord) {
+        const id = dayRow.id;
+        await putRecord("work_days", id, {
+          id, date, is_day_off: off, is_absence: absence,
+          sunday_unlocked: sunday && !off && !absence ? 1 : 0,
+          notes: dayRow.notes || "",
+          created_at: dayRow.created_at || now, updated_at: now, deleted_at: null
+        }, "");
+        dayRecord = state.records.find(r => r.entity === "work_days" && r.entity_id === id);
+      } else if ((dayRecord.payload.is_day_off ? 1 : 0) !== off || (dayRecord.payload.is_absence ? 1 : 0) !== absence) {
+        await putRecord("work_days", dayRecord.entity_id, {
+          ...dayRecord.payload, is_day_off: off, is_absence: absence, notes: dayRow.notes || dayRecord.payload.notes || "", updated_at: now
+        }, dayRecord.revision);
+        dayRecord = state.records.find(r => r.entity === "work_days" && r.entity_id === dayRecord.entity_id);
+      }
+      const live = rows("work_periods").filter(r => r.payload.work_day_id === dayRecord.entity_id);
+      for (const period of periods) {
+        const start = period.start_clock;
+        const end = period.end_clock;
+        if (live.some(r => r.payload.start_clock === start && r.payload.end_clock === end)) continue;
+        if (live.some(r => r.payload.start_clock === start && r.payload.end_clock !== end)) continue;
+        const endsNext = period.ends_next_day || (end && start && minuteOfDay(end) <= minuteOfDay(start)) ? 1 : 0;
+        const id = period.id;
+        await putRecord("work_periods", id, {
+          id, work_day_id: dayRecord.entity_id, start_clock: start, end_clock: end, ends_next_day: endsNext,
+          start_instant: period.start_instant || lisbonInstant(date, start, 0),
+          end_instant: period.end_instant || lisbonInstant(date, end, endsNext),
+          created_at: period.created_at || now, updated_at: now, deleted_at: null
+        }, "");
+      }
     }
 
     /* ------- Folha ------- */
