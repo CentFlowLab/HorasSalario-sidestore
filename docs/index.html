@@ -5,60 +5,182 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Horas e Salário</title>
   <style>
-    :root { color-scheme: dark; }
+    :root {
+      color-scheme: dark;
+      --bg: #0b0d12;
+      --panel: #14161d;
+      --card: #1a1c23;
+      --line: rgba(255,255,255,.08);
+      --muted: #9aa3ad;
+      --text: #f4f6f8;
+      --green: #7cdb87;
+      --amber: #efc35a;
+      --red: #ff6b6b;
+      --blue: #6fa8ff;
+    }
     * { box-sizing: border-box; }
-    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #0b0d12; color: #f4f6f8; }
-    header, main { width: min(920px, calc(100% - 32px)); margin: 0 auto; }
-    header { display: flex; justify-content: space-between; gap: 16px; align-items: end; padding: 28px 0 12px; }
-    h1 { margin: 0; font-size: 34px; }
-    .eyebrow { margin: 0 0 4px; color: #9aa3ad; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); }
     button, input, select { font: inherit; color: inherit; }
     button { cursor: pointer; }
-    .card { background: #1a1c23; border-radius: 16px; padding: 16px; margin: 12px 0; }
+    a { color: var(--green); }
+    h2 { margin: 0 0 4px; font-size: 18px; }
+    p { margin: 0; }
+
+    /* Shell com navegação lateral compacta */
+    .shell { display: grid; grid-template-columns: 232px 1fr; min-height: 100vh; }
+    .sidebar { background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; gap: 4px; padding: 20px 14px; position: sticky; top: 0; height: 100vh; }
+    .brand { display: flex; align-items: center; gap: 10px; padding: 4px 8px 16px; }
+    .brand .logo { width: 34px; height: 34px; border-radius: 9px; background: var(--green); color: #0b0d12; font-weight: 800; display: grid; place-items: center; }
+    .brand .eyebrow { color: var(--muted); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
+    .brand strong { font-size: 15px; }
+    .nav button { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: transparent; border: 0; border-radius: 10px; padding: 10px 12px; color: var(--muted); font-weight: 600; }
+    .nav button:hover { background: rgba(255,255,255,.04); color: var(--text); }
+    .nav button[aria-pressed="true"] { background: rgba(124,219,135,.14); color: var(--green); }
+    .nav .ic { width: 18px; text-align: center; }
+    .side-foot { margin-top: auto; border-top: 1px solid var(--line); padding-top: 14px; display: flex; flex-direction: column; gap: 8px; }
+    .side-foot .who { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ghost { background: transparent; border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; color: var(--text); font-weight: 600; }
+    .ghost:hover { border-color: rgba(255,255,255,.28); }
+
+    .content { padding: 22px clamp(16px, 3vw, 40px) 48px; max-width: 1320px; width: 100%; }
+    .chead { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 6px; }
+    .chead h1 { margin: 0; font-size: 26px; }
+    .chead .eyebrow { color: var(--muted); font-size: 12px; letter-spacing: .07em; text-transform: uppercase; margin: 0 0 2px; }
+    .monthsel { display: flex; align-items: center; gap: 6px; background: var(--card); border-radius: 999px; padding: 4px; }
+    .monthsel .ms-label { min-width: 136px; text-align: center; font-weight: 650; font-size: 14px; }
+    .iconbtn { width: 34px; height: 34px; border-radius: 999px; border: 0; background: transparent; color: var(--text); font-size: 16px; display: grid; place-items: center; }
+    .iconbtn:hover { background: rgba(255,255,255,.08); }
+
+    .statusbar { display: flex; align-items: center; gap: 10px; margin: 8px 0 14px; font-size: 13px; min-height: 20px; }
+    .dot { width: 8px; height: 8px; border-radius: 999px; background: var(--muted); flex: none; }
+    .dot.ok { background: var(--green); }
+    .dot.warn { background: var(--amber); }
+    .dot.err { background: var(--red); }
+    .statusbar .msg { color: var(--muted); }
+    .statusbar .msg.warn { color: var(--amber); }
+    .statusbar .msg.err { color: var(--red); }
+    .statusbar .spacer { flex: 1; }
+
+    .card { background: var(--card); border-radius: 16px; padding: 16px; margin: 0 0 16px; }
+    .muted { color: var(--muted); }
+    .green { background: var(--green); color: #0b0d12; border: 0; border-radius: 12px; padding: 10px 16px; font-weight: 700; }
+    .plain { background: transparent; color: var(--text); border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; font-weight: 600; }
+    .plain:hover { border-color: rgba(255,255,255,.28); }
+    .danger { background: transparent; color: var(--red); border: 0; font-weight: 650; }
     .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: end; }
-    label { display: flex; flex-direction: column; gap: 6px; color: #9aa3ad; font-size: 13px; flex: 1; }
-    input, select { background: #0b0d12; border: 0; border-radius: 12px; padding: 12px; min-width: 0; }
-    .green { background: #7cdb87; color: #111; border: 0; border-radius: 14px; padding: 12px 16px; font-weight: 650; }
-    .plain { background: transparent; color: #f4f6f8; border: 1px solid rgba(255,255,255,.16); border-radius: 12px; padding: 10px 12px; }
-    .danger { background: transparent; color: #ff6b6b; border: 0; font-weight: 650; }
-    .ok { color: #7cdb87; font-size: 14px; }
-    .warn { color: #efc35a; }
-    .muted { color: #9aa3ad; }
-    .tabs { display: flex; gap: 8px; }
-    .tabs button[aria-pressed="true"] { background: #7cdb87; color: #111; border-color: transparent; }
-    .day { display: grid; gap: 8px; padding: 12px 0; border-top: 1px solid rgba(255,255,255,.08); }
-    .km-table { display: grid; gap: 0; }
-    .km-head, .km-metrics { display: grid; grid-template-columns: 52px minmax(120px, 160px) minmax(130px, 180px) 88px minmax(220px, 1fr); gap: 12px; align-items: start; }
-    .km-head { color: #9aa3ad; font-size: 11px; letter-spacing: .04em; text-transform: uppercase; padding: 12px 0 8px; border-top: 1px solid rgba(255,255,255,.08); }
-    .km-day { font-size: 22px; font-weight: 700; line-height: 1.1; }
+    label.field { display: flex; flex-direction: column; gap: 6px; color: var(--muted); font-size: 13px; flex: 1; min-width: 0; }
+    label.field input, label.field select { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 11px; min-width: 0; }
+
+    details.help { margin-top: 6px; }
+    details.help summary { cursor: pointer; color: var(--muted); font-size: 13px; list-style: none; }
+    details.help summary::-webkit-details-marker { display: none; }
+    details.help summary::before { content: "ⓘ "; }
+    details.help p { color: var(--muted); font-size: 13px; margin-top: 8px; }
+
+    /* Folha em grelha */
+    .folha { display: flex; flex-direction: column; }
+    .fhead, .frow { display: grid; grid-template-columns: 62px 78px 78px 78px 78px 60px 64px minmax(130px, 1fr); gap: 8px; align-items: center; }
+    .fhead { padding: 6px 10px; color: var(--muted); font-size: 11px; letter-spacing: .04em; text-transform: uppercase; }
+    .fhead .grp { grid-column: span 2; }
+    .frow { padding: 7px 10px; border-radius: 12px; border: 1px solid transparent; }
+    .frow + .frow { margin-top: 2px; }
+    .frow:hover { background: rgba(255,255,255,.02); }
+    .frow.today { border-color: rgba(124,219,135,.4); background: rgba(124,219,135,.06); }
+    .frow.folga { background: rgba(111,168,255,.05); }
+    .frow.falta { background: rgba(255,107,107,.05); }
+    .frow.incompleto { background: rgba(239,195,90,.05); }
+    .daycell { display: flex; flex-direction: column; gap: 2px; }
+    .daycell .d { font-weight: 700; }
+    .daycell .wd { font-size: 11px; color: var(--muted); }
+    .cell { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+    .cell .clab { display: none; font-size: 11px; color: var(--muted); }
+    .cell input { background: var(--bg); border: 1px solid var(--line); border-radius: 9px; padding: 9px; width: 100%; text-align: center; letter-spacing: .02em; }
+    .cell input:focus { outline: none; border-color: var(--green); }
+    .cell input:disabled { opacity: .4; }
+    .tcell { font-variant-numeric: tabular-nums; font-weight: 600; }
+    .tcell.sub { color: var(--muted); font-weight: 500; }
+    .saldo.pos { color: var(--green); }
+    .saldo.neg { color: var(--amber); }
+    .actions { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
+    .rowstatus { font-size: 12px; color: var(--muted); }
+    .rowstatus.warn { color: var(--amber); }
+    .rowstatus.err { color: var(--red); }
+    .rowstatus.ok { color: var(--green); }
+    .savebtn { background: var(--green); color: #0b0d12; border: 0; border-radius: 9px; padding: 7px 12px; font-weight: 700; font-size: 13px; }
+    .savebtn[hidden] { display: none; }
+    .chip { font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 999px; display: inline-block; }
+    .chip.today { background: var(--green); color: #0b0d12; }
+    .chip.folga { background: rgba(111,168,255,.18); color: var(--blue); }
+    .chip.falta { background: rgba(255,107,107,.18); color: var(--red); }
+    .chip.incompleto { background: rgba(239,195,90,.18); color: var(--amber); }
+    .chip.domingo { background: rgba(255,255,255,.08); color: var(--muted); }
+
+    .wsum { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin: 16px 0 6px; padding: 8px 12px; background: rgba(255,255,255,.03); border-radius: 10px; }
+    .wsum .wk { font-weight: 700; font-size: 14px; }
+    .wsum .m { font-size: 13px; color: var(--muted); }
+    .wsum .m b { color: var(--text); font-weight: 650; font-variant-numeric: tabular-nums; }
+    .wsum .m b.pos { color: var(--green); }
+    .wsum .m b.neg { color: var(--amber); }
+
+    /* Quilómetros */
+    .km-head, .km-metrics { display: grid; grid-template-columns: 56px minmax(110px,150px) minmax(130px,180px) 90px minmax(220px,1fr); gap: 12px; align-items: start; }
+    .km-head { color: var(--muted); font-size: 11px; letter-spacing: .04em; text-transform: uppercase; padding: 10px 0 8px; border-bottom: 1px solid var(--line); }
+    .km-row { padding: 12px 0; border-bottom: 1px solid var(--line); }
+    .km-day { font-size: 22px; font-weight: 700; line-height: 1.05; }
     .km-final { font-size: 18px; font-weight: 700; }
     .km-head p, .km-metrics p { margin: 0; }
-    @media (max-width: 760px) {
-      .km-head { display: none; }
-      .km-metrics { grid-template-columns: 44px 1fr; }
-      .km-metrics .span { grid-column: 1 / -1; }
-    }
-    .clocks { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-    .status { min-height: 1.2em; }
     .fuel { background: rgba(255,255,255,.04); border-radius: 12px; padding: 10px; margin-top: 8px; }
-    a { color: #7cdb87; }
+    .fuel .ftitle { font-weight: 650; }
+
+    @media (max-width: 1120px) {
+      .shell { grid-template-columns: 1fr; }
+      .shell > * { min-width: 0; }
+      .sidebar { position: static; height: auto; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px; }
+      .brand { padding: 0 8px 0 0; }
+      .nav { display: flex; gap: 6px; }
+      .nav button { width: auto; padding: 8px 12px; }
+      .side-foot { margin: 0 0 0 auto; border: 0; padding: 0; flex-direction: row; align-items: center; }
+      .side-foot .who { max-width: 150px; }
+    }
+    @media (max-width: 800px) {
+      .chead { flex-wrap: wrap; }
+      .chead h1 { font-size: 22px; }
+      .monthsel { flex: 1; justify-content: space-between; }
+      .km-head { display: none; }
+      .km-metrics { grid-template-columns: 46px 1fr; }
+      .km-metrics .span { grid-column: 1 / -1; }
+      .fhead { display: none; }
+      .folha { gap: 4px; }
+      .frow { grid-template-columns: 1fr 1fr; gap: 8px 10px; padding: 12px; background: var(--card); border: 1px solid var(--line); }
+      .frow.today { border-color: rgba(124,219,135,.5); }
+      .daycell { grid-column: 1 / -1; flex-direction: row; align-items: center; gap: 8px; }
+      .cell .clab { display: block; }
+      .tcell { grid-column: auto; }
+      .tcell::before { content: attr(data-label) " "; color: var(--muted); font-weight: 500; font-size: 11px; display: block; }
+      .actions { grid-column: 1 / -1; justify-content: space-between; }
+    }
   </style>
 </head>
 <body>
-  <header>
-    <div>
-      <p class="eyebrow">Mesma conta do iPhone</p>
-      <h1>Horas e Salário</h1>
-    </div>
-    <div id="account"></div>
-  </header>
-  <main id="app"></main>
+  <div id="root"></div>
   <script src="config.js"></script>
   <script>
     const config = window.HORAS_CONFIG || { url: "", key: "" };
     const storageKey = "horas-session";
-    const state = { session: loadSession(), records: [], tab: "horas", year: 0, month: 0, status: "", error: "" };
+    const DAILY_REF = 400;              // 6h40 por dia de referência
+    const EMPLOYMENT_START = "2026-08-20";
+    const state = {
+      session: loadSession(),
+      records: [],
+      tab: "horas",
+      year: 0, month: 0,
+      status: "", error: "",
+      drafts: {},        // { date: {e1,s1,e2,s2} } rascunhos preservados
+      rowStatus: {},     // { date: {kind, text} }
+      savingDate: null
+    };
 
+    /* ------- sessão e utilidades ------- */
     function loadSession() {
       try { return JSON.parse(localStorage.getItem(storageKey) || "null"); } catch { return null; }
     }
@@ -69,47 +191,88 @@
     }
     function stamp() { return new Date().toISOString().replace(/\.\d{3}Z$/, "Z"); }
     function todayISO() {
-      const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Lisbon", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
-      return parts;
+      return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Lisbon", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
     }
     function monthDays(year, month) {
       const count = new Date(Date.UTC(year, month, 0)).getUTCDate();
-      return Array.from({ length: count }, (_, index) => `${year}-${String(month).padStart(2, "0")}-${String(index + 1).padStart(2, "0")}`);
+      return Array.from({ length: count }, (_, i) => `${year}-${String(month).padStart(2, "0")}-${String(i + 1).padStart(2, "0")}`);
     }
     function weekday(iso) {
       const day = new Date(`${iso}T12:00:00Z`).getUTCDay();
       return day === 0 ? 7 : day;
     }
-    function weekdayName(iso) {
-      return ["", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"][weekday(iso)];
-    }
+    function weekdayName(iso) { return ["", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"][weekday(iso)]; }
     function dayNumber(iso) { return String(Number(iso.slice(-2))); }
+    function addDays(iso, days) {
+      const d = new Date(`${iso}T12:00:00Z`);
+      d.setUTCDate(d.getUTCDate() + days);
+      return d.toISOString().slice(0, 10);
+    }
+    function mondayOnOrBefore(iso) { return addDays(iso, -(weekday(iso) - 1)); }
     function normalizeClock(raw) {
-      const trimmed = raw.trim();
+      const trimmed = (raw || "").trim();
       if (!trimmed) return "";
       const digits = trimmed.replace(/\D/g, "");
       if (trimmed.includes(":") && trimmed.split(":").length === 2) {
-        const [hour, minute] = trimmed.split(":").map(Number);
-        if (hour > 23 || minute > 59 || Number.isNaN(hour) || Number.isNaN(minute)) return null;
-        return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+        const [h, m] = trimmed.split(":").map(Number);
+        if (h > 23 || m > 59 || Number.isNaN(h) || Number.isNaN(m)) return null;
+        return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
       }
       if (![1, 2, 3, 4].includes(digits.length) || digits !== trimmed) return null;
-      const hour = Number(digits.length > 2 ? digits.slice(0, digits.length - 2) : digits);
-      const minute = digits.length > 2 ? Number(digits.slice(-2)) : 0;
-      if (hour > 23 || minute > 59) return null;
-      return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+      const h = Number(digits.length > 2 ? digits.slice(0, digits.length - 2) : digits);
+      const m = digits.length > 2 ? Number(digits.slice(-2)) : 0;
+      if (h > 23 || m > 59) return null;
+      return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
     }
-    function minuteOfDay(clock) {
-      const [hour, minute] = clock.split(":").map(Number);
-      return hour * 60 + minute;
+    function minuteOfDay(clock) { const [h, m] = clock.split(":").map(Number); return h * 60 + m; }
+    function hoursText(min) { const s = min < 0 ? "-" : ""; const a = Math.abs(min); return `${s}${Math.floor(a / 60)}h${String(a % 60).padStart(2, "0")}`; }
+    function signedHours(min) { return min > 0 ? `+${hoursText(min)}` : hoursText(min); }
+    function rows(entity) { return state.records.filter(r => r.entity === entity && !r.payload.deleted_at); }
+    function byDate(entity, date) { return rows(entity).filter(r => r.payload.date === date); }
+
+    /* ------- motor de horas (espelho fiel do HoursEngine, só para mostrar) ------- */
+    function periodsOf(date) {
+      const day = byDate("work_days", date)[0];
+      const list = rows("work_periods")
+        .filter(r => r.payload.work_day_id === day?.entity_id)
+        .sort((a, b) => String(a.payload.start_clock).localeCompare(String(b.payload.start_clock)));
+      return { day, list };
     }
-    function rows(entity) {
-      return state.records.filter(record => record.entity === entity && !record.payload.deleted_at);
+    function storedFields(date) {
+      const { day, list } = periodsOf(date);
+      const v = ["", "", "", ""];
+      list.slice(0, 2).forEach((period, i) => {
+        v[i * 2] = period.payload.start_clock || "";
+        v[i * 2 + 1] = period.payload.end_clock || "";
+      });
+      return { e1: v[0], s1: v[1], e2: v[2], s2: v[3], day, list };
     }
-    function byDate(entity, date) {
-      return rows(entity).filter(record => record.payload.date === date);
+    function dayResult(date) {
+      const { day, list } = periodsOf(date);
+      const sunday = weekday(date) === 7;
+      const isOff = day?.payload.is_day_off ? true : false;
+      const isAbsence = day?.payload.is_absence ? true : false;
+      // Períodos incompletos (ex.: vindos do telemóvel) bloqueiam os totais.
+      const incomplete = list.some(p => !p.payload.start_clock || !p.payload.end_clock);
+      let worked = 0;
+      for (const p of list) {
+        if (!p.payload.start_clock || !p.payload.end_clock) continue;
+        const start = minuteOfDay(p.payload.start_clock);
+        let end = minuteOfDay(p.payload.end_clock);
+        if (p.payload.ends_next_day || end <= start) end += 1440;
+        worked += end - start;
+      }
+      let stateName, delta, counts;
+      if (isOff) { stateName = "folga"; worked = 0; counts = true; delta = sunday ? 0 : -DAILY_REF; }
+      else if (isAbsence) { stateName = "falta"; worked = 0; counts = true; delta = sunday ? 0 : -DAILY_REF; }
+      else if (incomplete) { stateName = "incompleto"; counts = false; delta = 0; }
+      else if (list.length === 0) { stateName = "porPreencher"; worked = 0; counts = true; delta = 0; }
+      else if (sunday) { stateName = "preenchido"; counts = true; delta = worked; }
+      else { stateName = "preenchido"; counts = true; delta = worked - DAILY_REF; }
+      return { date, sunday, state: stateName, worked, delta, counts };
     }
 
+    /* ------- rede: autenticação, leitura e gravação (inalterado) ------- */
     function accountError(status, data) {
       const code = String(data?.error_code || data?.msg || data?.message || "");
       if (code.includes("weak_password") || String(data?.msg || "").includes("at least 6")) return "A palavra-passe tem de ter pelo menos 6 caracteres.";
@@ -117,35 +280,22 @@
       if (status === 429 || code.includes("rate")) return "O servidor não enviou o email de confirmação. Espera cerca de uma hora ou desliga Confirm email no projeto e tenta outra vez.";
       return data?.msg || data?.message || data?.error_description || `O servidor respondeu ${status}.`;
     }
-
     async function api(path, method, token, body) {
       const response = await fetch(config.url + path, {
         method,
-        headers: {
-          apikey: config.key,
-          Authorization: `Bearer ${token || config.key}`,
-          "Content-Type": "application/json"
-        },
+        headers: { apikey: config.key, Authorization: `Bearer ${token || config.key}`, "Content-Type": "application/json" },
         body: body ? JSON.stringify(body) : undefined
       });
-      const text = await response.text();
-      const data = text ? JSON.parse(text) : null;
+      const t = await response.text();
+      const data = t ? JSON.parse(t) : null;
       if (response.status === 401) throw new Error("A sessão expirou. Entra outra vez.");
       if (!response.ok) throw new Error(accountError(response.status, data));
       return data;
     }
-
     function sessionFrom(data, email) {
       if (!data?.access_token || !data.user?.id) return null;
-      return {
-        userID: data.user.id,
-        email: data.user.email || email,
-        accessToken: data.access_token,
-        refreshToken: data.refresh_token,
-        expiresAt: Date.now() + (data.expires_in || 3600) * 1000
-      };
+      return { userID: data.user.id, email: data.user.email || email, accessToken: data.access_token, refreshToken: data.refresh_token, expiresAt: Date.now() + (data.expires_in || 3600) * 1000 };
     }
-
     async function ensureSession() {
       if (!state.session) return;
       if (Date.now() < state.session.expiresAt - 60000) return;
@@ -154,159 +304,377 @@
       if (!renewed) throw new Error("A sessão expirou. Entra outra vez.");
       saveSession(renewed);
     }
-
     async function loadRecords() {
       await ensureSession();
       const data = await api("/rest/v1/horas_records?select=entity,entity_id,payload,revision", "GET", state.session.accessToken);
-      state.records = (data || []).map(row => ({ ...row, payload: row.payload || {} }));
+      state.records = (data || []).map(r => ({ ...r, payload: r.payload || {} }));
     }
-
     async function putRecord(entity, id, payload, baseRevision) {
       const revision = payload.updated_at;
       const operationID = `${entity}|${id}|${revision}`;
       const result = await api("/rest/v1/rpc/horas_put", "POST", state.session.accessToken, {
-        p_operation_id: operationID,
-        p_entity: entity,
-        p_entity_id: id,
-        p_payload: payload,
-        p_revision: revision,
-        p_base_revision: baseRevision || ""
+        p_operation_id: operationID, p_entity: entity, p_entity_id: id, p_payload: payload, p_revision: revision, p_base_revision: baseRevision || ""
       });
       if (result?.status === "conflict") throw new Error("O iPhone alterou este registo entretanto. Atualiza e volta a escrever.");
       if (result?.status !== "stored") throw new Error("A conta não confirmou este registo.");
       await loadRecords();
-      const saved = state.records.find(record => record.entity === entity && record.entity_id === id);
+      const saved = state.records.find(r => r.entity === entity && r.entity_id === id);
       if (!saved || saved.revision !== revision) throw new Error("A conta não devolveu o registo enviado.");
     }
 
+    /* ------- layout principal ------- */
+    const SECTIONS = [
+      { id: "horas", label: "Folha", icon: "▦", title: "Folha mensal", eyebrow: "Controlo mensal" },
+      { id: "km", label: "Quilómetros", icon: "⬍", title: "Quilómetros", eyebrow: "Registo da carrinha" }
+    ];
+    const MONTHS = ["", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+
     function render() {
-      const account = document.getElementById("account");
-      const app = document.getElementById("app");
-      account.replaceChildren();
-      app.replaceChildren();
+      const root = document.getElementById("root");
+      root.replaceChildren();
       if (!config.url.startsWith("https://") || !config.key || config.key.includes("service_role") || config.key.includes("sb_secret_")) {
-        app.append(card(p("Esta página ainda não tem o projeto da conta. Abre a app no iPhone.")));
+        root.append(centered(card(p("Esta página ainda não tem o projeto da conta. Abre a app no iPhone."))));
         return;
       }
-      if (!state.session) { renderLogin(app); return; }
+      if (!state.session) { root.append(centered(loginCard())); return; }
       const now = todayISO();
       if (!state.year) { state.year = Number(now.slice(0, 4)); state.month = Number(now.slice(5, 7)); }
-      account.append(text(state.session.email, "muted"), button("Sair", "plain", signOut));
-      app.append(toolbar(), statusLine());
-      if (state.tab === "horas") renderHours(app);
-      else renderKm(app);
+
+      const shell = div("shell");
+      shell.append(sidebar(), content());
+      root.append(shell);
     }
 
-    function renderLogin(app) {
+    function centered(node) {
+      const wrap = div("content");
+      wrap.style.maxWidth = "520px";
+      wrap.style.margin = "48px auto";
+      wrap.append(node);
+      return wrap;
+    }
+
+    function sidebar() {
+      const bar = div("sidebar");
+      const brand = div("brand");
+      brand.append(div("logo", text("H")));
+      const bt = div("");
+      bt.append(p("Mesma conta do iPhone", "eyebrow"), el("strong", "Horas e Salário"));
+      brand.append(bt);
+      bar.append(brand);
+
+      const nav = div("nav");
+      for (const sec of SECTIONS) {
+        const b = button2(`${sec.label}`, () => { state.tab = sec.id; render(); }, state.tab === sec.id);
+        b.prepend(spanIcon(sec.icon));
+        nav.append(b);
+      }
+      bar.append(nav);
+
+      const foot = div("side-foot");
+      foot.append(p(state.session.email, "who"));
+      foot.append(button("Sair", "ghost", signOut));
+      bar.append(foot);
+      return bar;
+    }
+
+    function content() {
+      const sec = SECTIONS.find(s => s.id === state.tab) || SECTIONS[0];
+      const main = div("content");
+
+      const head = div("chead");
+      const titleBox = div("");
+      titleBox.append(p(sec.eyebrow, "eyebrow"), el("h1", sec.title));
+      const ms = div("monthsel");
+      ms.append(
+        iconButton("‹", () => shiftMonth(-1)),
+        div("ms-label", text(`${MONTHS[state.month]} ${state.year}`)),
+        iconButton("›", () => shiftMonth(1))
+      );
+      head.append(titleBox, ms);
+      main.append(head, statusBar());
+
+      if (state.tab === "horas") renderHours(main);
+      else renderKm(main);
+      return main;
+    }
+
+    function statusBar() {
+      const bar = div("statusbar");
+      const kind = state.error ? "err" : (state.status ? "ok" : "");
+      bar.append(div(`dot ${kind}`));
+      bar.append(p(state.error || state.status || "Pronto.", `msg ${state.error ? "err" : ""}`));
+      bar.append(div("spacer"));
+      bar.append(button("Atualizar", "plain", refresh));
+      return bar;
+    }
+
+    function shiftMonth(delta) {
+      const d = new Date(Date.UTC(state.year, state.month - 1 + delta, 1));
+      state.year = d.getUTCFullYear();
+      state.month = d.getUTCMonth() + 1;
+      state.rowStatus = {};
+      render();
+    }
+
+    /* ------- login ------- */
+    function loginCard() {
       const email = input("email", "Email");
       const password = input("password", "Palavra-passe");
-      const note = p("", "status");
-      app.append(card(
+      const note = p("", "msg");
+      return card(
         h2("Entrar na mesma conta"),
         p("Usa o email da app do iPhone. Os registos aparecem aqui depois de o iPhone sincronizar pelo menos uma vez.", "muted"),
         email.label, password.label,
-        div("row", button("Entrar", "green", () => auth("in", email.field, password.field, note)), button("Criar conta", "plain", () => auth("up", email.field, password.field, note)), button("Recuperar palavra-passe", "plain", () => auth("recover", email.field, password.field, note))),
+        div("row",
+          button("Entrar", "green", () => auth("in", email.field, password.field, note)),
+          button("Criar conta", "plain", () => auth("up", email.field, password.field, note)),
+          button("Recuperar palavra-passe", "plain", () => auth("recover", email.field, password.field, note))
+        ),
         note
-      ));
+      );
     }
-
     async function auth(kind, emailField, passwordField, note) {
       note.textContent = "";
       try {
         const email = emailField.value.trim();
         const password = passwordField.value;
-        if (kind === "recover") {
-          await api("/auth/v1/recover", "POST", null, { email });
-          note.textContent = "Se existir uma conta com esse email, chega uma mensagem para definir outra palavra-passe.";
-          return;
-        }
+        if (kind === "recover") { await api("/auth/v1/recover", "POST", null, { email }); note.textContent = "Se existir uma conta com esse email, chega uma mensagem para definir outra palavra-passe."; return; }
         const path = kind === "up" ? "/auth/v1/signup" : "/auth/v1/token?grant_type=password";
         const data = await api(path, "POST", null, { email, password });
         const session = sessionFrom(data, email);
-        if (!session) {
-          note.textContent = "A conta foi criada. Confirma o email antes de entrar.";
-          return;
-        }
+        if (!session) { note.textContent = "A conta foi criada. Confirma o email antes de entrar."; return; }
         saveSession(session);
         await refresh();
-      } catch (error) {
-        note.textContent = error.message;
+      } catch (error) { note.textContent = error.message; }
+    }
+
+    /* ------- Folha ------- */
+    function renderHours(main) {
+      const box = card();
+      const bar = div("row");
+      bar.style.justifyContent = "space-between";
+      bar.append(h2("Folha mensal"));
+      box.append(bar);
+      const help = el("details", null);
+      help.className = "help";
+      const sum = document.createElement("summary"); sum.textContent = "Como preencher";
+      help.append(sum, p("Escreve as horas no próprio dia: 0830 passa a 08:30 e o Tab avança pelas colunas e depois para o dia seguinte. Uma saída menor ou igual à entrada termina no dia seguinte. O dia por preencher não recebe débito automático; folga ou falta de segunda a sábado descontam 6h40; domingo trabalhado conta à parte."));
+      box.append(help);
+
+      const table = div("folha");
+      table.append(folhaHead());
+
+      const asOf = isCurrentMonth() ? todayISO() : null;
+      const days = monthDays(state.year, state.month).filter(d => d >= EMPLOYMENT_START);
+      let currentWeek = null;
+      for (const date of days) {
+        const wk = mondayOnOrBefore(date);
+        if (wk !== currentWeek) {
+          currentWeek = wk;
+          const weekDays = days.filter(d => mondayOnOrBefore(d) === wk);
+          table.append(weekSummary(wk, weekDays, asOf));
+        }
+        table.append(folhaRow(date, asOf));
       }
+      box.append(table);
+      main.append(box);
     }
 
-    function toolbar() {
-      const names = ["", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
-      return div("row",
-        button("‹", "plain", () => shiftMonth(-1)),
-        text(`${names[state.month]} ${state.year}`),
-        button("›", "plain", () => shiftMonth(1)),
-        button("Horas", "plain", () => { state.tab = "horas"; render(); }, state.tab === "horas"),
-        button("Quilómetros", "plain", () => { state.tab = "km"; render(); }, state.tab === "km"),
-        button("Atualizar", "plain", refresh)
+    function folhaHead() {
+      const head = div("fhead");
+      head.append(
+        div("", text("Dia")),
+        div("", text("Entrada 1")), div("", text("Saída 1")),
+        div("", text("Entrada 2")), div("", text("Saída 2")),
+        div("", text("Horas")), div("", text("Saldo")),
+        div("", text("Estado / ação"))
       );
+      return head;
     }
 
-    function shiftMonth(delta) {
-      const date = new Date(Date.UTC(state.year, state.month - 1 + delta, 1));
-      state.year = date.getUTCFullYear();
-      state.month = date.getUTCMonth() + 1;
+    function weekSummary(monday, weekDays, asOf) {
+      const sunday = addDays(monday, 6);
+      let worked = 0, target = 0, balance = 0;
+      for (const date of weekDays) {
+        if (asOf && date > asOf) continue;
+        const r = dayResult(date);
+        if (weekday(date) !== 7 && date >= EMPLOYMENT_START) target += DAILY_REF;
+        if (r.counts) { worked += r.worked; balance += r.delta; }
+      }
+      const node = div("wsum");
+      node.append(div("wk", text(`Semana de ${br(monday)} a ${br(sunday)}`)));
+      node.append(metric("Trabalhado", hoursText(worked)));
+      node.append(metric("Referência", hoursText(target)));
+      node.append(metric("Saldo", signedHours(balance), balance > 0 ? "pos" : (balance < 0 ? "neg" : "")));
+      return node;
+    }
+    function metric(label, value, cls) {
+      const m = div("m");
+      m.append(document.createTextNode(label + " "));
+      const b = el("b", value);
+      if (cls) b.className = cls;
+      m.append(b);
+      return m;
+    }
+    function br(iso) { const [y, mo, d] = iso.split("-"); return `${d}/${mo}`; }
+
+    function folhaRow(date, asOf) {
+      const stored = storedFields(date);
+      const result = dayResult(date);
+      const isToday = date === todayISO();
+      const locked = result.state === "folga" || result.state === "falta";
+      const draft = state.drafts[date];
+      const vals = draft || { e1: stored.e1, s1: stored.s1, e2: stored.e2, s2: stored.s2 };
+
+      const rowCls = ["frow"];
+      if (isToday) rowCls.push("today");
+      if (["folga", "falta", "incompleto"].includes(result.state)) rowCls.push(result.state);
+      const row = div(rowCls.join(" "));
+
+      // Dia
+      const daycell = div("daycell");
+      const dl = div("d"); dl.textContent = `${dayNumber(date).padStart(2, "0")}`;
+      const wd = div("wd"); wd.textContent = weekdayName(date);
+      const left = div(""); left.append(dl, wd);
+      daycell.append(left);
+      const chip = stateChip(result, isToday);
+      if (chip) daycell.append(chip);
+      row.append(daycell);
+
+      // 4 campos
+      const fields = {};
+      [["e1", "Entrada 1"], ["s1", "Saída 1"], ["e2", "Entrada 2"], ["s2", "Saída 2"]].forEach(([key, label]) => {
+        const cell = div("cell");
+        const clab = document.createElement("span"); clab.className = "clab"; clab.textContent = label;
+        const f = document.createElement("input");
+        f.type = "text"; f.inputMode = "numeric"; f.placeholder = "08:30"; f.maxLength = 5;
+        f.value = vals[key] || "";
+        f.disabled = locked;
+        f.setAttribute("aria-label", `${label} de ${br(date)}`);
+        f.addEventListener("input", () => onFieldInput(date, fields, row));
+        f.addEventListener("blur", () => { const n = normalizeClock(f.value); if (n !== null && n !== "") f.value = n; onFieldInput(date, fields, row); });
+        cell.append(clab, f);
+        fields[key] = f;
+        row.append(cell);
+      });
+
+      // Horas, Saldo
+      const horas = div("tcell"); horas.setAttribute("data-label", "Horas");
+      horas.textContent = (result.state === "folga" || result.state === "falta" || result.state === "porPreencher" || result.state === "incompleto") ? "—" : hoursText(result.worked);
+      row.append(horas);
+
+      const included = !asOf || date <= asOf;
+      const saldo = div("tcell saldo"); saldo.setAttribute("data-label", "Saldo");
+      if (!included || result.state === "porPreencher" || result.state === "incompleto") saldo.textContent = "—";
+      else { saldo.textContent = signedHours(result.delta); if (result.delta > 0) saldo.classList.add("pos"); else if (result.delta < 0) saldo.classList.add("neg"); }
+      row.append(saldo);
+
+      // Estado / ação
+      const actions = div("actions");
+      const rowStatus = div("rowstatus");
+      const saveBtn = document.createElement("button");
+      saveBtn.className = "savebtn"; saveBtn.textContent = "Guardar"; saveBtn.tabIndex = -1;
+      saveBtn.addEventListener("click", () => commitRow(date, fields, row));
+      actions.append(rowStatus, saveBtn);
+      row.append(actions);
+
+      row._refs = { fields, stored, saveBtn, rowStatus, locked };
+      paintRowStatus(date, row);
+      return row;
+    }
+
+    function stateChip(result, isToday) {
+      if (isToday) return chipEl("Hoje", "today");
+      if (result.state === "folga") return chipEl("Folga", "folga");
+      if (result.state === "falta") return chipEl("Falta", "falta");
+      if (result.state === "incompleto") return chipEl("Incompleto", "incompleto");
+      if (result.sunday && result.state === "porPreencher") return chipEl("Domingo", "domingo");
+      return null;
+    }
+    function chipEl(label, cls) { const c = document.createElement("span"); c.className = `chip ${cls}`; c.textContent = label; return c; }
+
+    function currentDraftFromFields(fields) {
+      return { e1: fields.e1.value, s1: fields.s1.value, e2: fields.e2.value, s2: fields.s2.value };
+    }
+    function rowDirty(date, fields) {
+      const stored = state._storedCache && state._storedCache[date] ? state._storedCache[date] : storedFields(date);
+      const norm = v => { const n = normalizeClock(v); return n === null ? "∅" : n; };
+      return norm(fields.e1.value) !== norm(stored.e1) || norm(fields.s1.value) !== norm(stored.s1)
+          || norm(fields.e2.value) !== norm(stored.e2) || norm(fields.s2.value) !== norm(stored.s2);
+    }
+    function onFieldInput(date, fields, row) {
+      state.drafts[date] = currentDraftFromFields(fields);
+      // escrever limpa um estado de erro/sucesso anterior dessa linha
+      if (state.rowStatus[date] && state.rowStatus[date].kind !== "saving") delete state.rowStatus[date];
+      paintRowStatus(date, row);
+    }
+    function paintRowStatus(date, row) {
+      const { saveBtn, rowStatus } = row._refs;
+      const explicit = state.rowStatus[date];
+      const dirty = rowDirty(date, row._refs.fields);
+      saveBtn.hidden = !dirty && !(explicit && explicit.kind === "saving");
+      saveBtn.disabled = state.savingDate === date;
+      rowStatus.className = "rowstatus";
+      if (explicit) {
+        rowStatus.textContent = explicit.text;
+        if (explicit.kind === "err") rowStatus.classList.add("err");
+        else if (explicit.kind === "ok") rowStatus.classList.add("ok");
+        else if (explicit.kind === "saving") rowStatus.classList.add("warn");
+        else if (explicit.kind === "dirty") rowStatus.classList.add("warn");
+        return;
+      }
+      if (dirty) { rowStatus.textContent = "Alterações por guardar"; rowStatus.classList.add("warn"); }
+      else { rowStatus.textContent = ""; }
+    }
+
+    async function commitRow(date, fields, row) {
+      state.drafts[date] = currentDraftFromFields(fields);
+      state.savingDate = date;
+      state.rowStatus[date] = { kind: "saving", text: "A guardar…" };
+      paintRowStatus(date, row);
+      const outcome = await commitDay(date);
+      state.savingDate = null;
+      if (outcome.ok) {
+        delete state.drafts[date];
+        state.rowStatus[date] = { kind: "ok", text: "Guardado ✓" };
+        state.status = "Alterações guardadas na conta.";
+        state.error = "";
+      } else {
+        state.rowStatus[date] = { kind: "err", text: outcome.error };
+        state.error = outcome.error;
+      }
       render();
     }
 
-    function renderHours(app) {
-      const box = card(h2("Folha"), p("0830 passa a 08:30. Uma saída menor ou igual à entrada termina no dia seguinte. Grava o dia e depois abre a app no iPhone para a sincronização trazer a alteração.", "muted"));
-      for (const date of monthDays(state.year, state.month)) {
-        if (date > todayISO() && weekday(date) === 7) continue;
-        box.append(hourRow(date));
-      }
-      app.append(box);
-    }
-
-    function hourRow(date) {
-      const day = byDate("work_days", date)[0];
-      const periods = rows("work_periods").filter(record => record.payload.work_day_id === day?.entity_id).sort((a, b) => String(a.payload.start_clock).localeCompare(String(b.payload.start_clock)));
-      const fields = [0, 1, 2, 3].map(index => {
-        const period = periods[Math.floor(index / 2)];
-        const value = period ? (index % 2 === 0 ? period.payload.start_clock : period.payload.end_clock || "") : "";
-        return input("text", index % 2 === 0 ? "Entrada" : "Saída", value || "");
-      });
-      const line = div("day");
-      line.append(text(`${dayNumber(date)} ${weekdayName(date)}`));
-      line.append(div("clocks", fields[0].label, fields[1].label));
-      line.append(div("clocks", fields[2].label, fields[3].label));
-      line.append(button("Guardar dia", "green", () => saveDay(date, day, periods, fields.map(item => item.field.value))));
-      return line;
-    }
-
-    async function saveDay(date, day, periods, values) {
-      const clocks = values.map(normalizeClock);
-      if (clocks.includes(null)) { state.error = "Há uma hora inválida."; render(); return; }
+    // Grava um dia usando o rascunho; devolve {ok, error}. Mantém o mecanismo de conflito existente.
+    async function commitDay(date) {
+      const draft = state.drafts[date] || {};
+      const clocks = [draft.e1, draft.s1, draft.e2, draft.s2].map(normalizeClock);
+      if (clocks.includes(null)) return { ok: false, error: "Há uma hora inválida nesse dia." };
       const pairs = [[clocks[0], clocks[1]], [clocks[2], clocks[3]]];
+      for (const [start, end] of pairs) { if ((start && !end) || (!start && end)) return { ok: false, error: "Cada período precisa de entrada e saída." }; }
       try {
         await ensureSession();
+        const { day, list } = periodsOf(date);
         const now = stamp();
         let dayRecord = day;
         if (!dayRecord) {
           const id = crypto.randomUUID();
           const payload = { id, date, is_day_off: 0, is_absence: 0, sunday_unlocked: weekday(date) === 7 ? 1 : 0, notes: "", created_at: now, updated_at: now, deleted_at: null };
           await putRecord("work_days", id, payload, "");
-          dayRecord = state.records.find(record => record.entity_id === id);
+          dayRecord = state.records.find(r => r.entity === "work_days" && r.entity_id === id);
         } else if (weekday(date) === 7 && !dayRecord.payload.sunday_unlocked) {
           const payload = { ...dayRecord.payload, sunday_unlocked: 1, updated_at: now };
           await putRecord("work_days", dayRecord.entity_id, payload, dayRecord.revision);
-          dayRecord = state.records.find(record => record.entity_id === dayRecord.entity_id);
+          dayRecord = state.records.find(r => r.entity === "work_days" && r.entity_id === dayRecord.entity_id);
         }
         for (let index = 0; index < pairs.length; index += 1) {
           const [start, end] = pairs[index];
-          const existing = periods[index];
+          const existing = list[index];
           if (!start && !end) {
-            if (existing) {
-              const payload = { ...existing.payload, deleted_at: now, updated_at: now };
-              await putRecord("work_periods", existing.entity_id, payload, existing.revision);
-            }
+            if (existing) await putRecord("work_periods", existing.entity_id, { ...existing.payload, deleted_at: now, updated_at: now }, existing.revision);
             continue;
           }
-          if (!start || !end) throw new Error("Cada período precisa de entrada e saída.");
           const endsNext = minuteOfDay(end) <= minuteOfDay(start) ? 1 : 0;
           if (existing) {
             const payload = { ...existing.payload, start_clock: start, end_clock: end, ends_next_day: endsNext, start_instant: lisbonInstant(date, start, 0), end_instant: lisbonInstant(date, end, endsNext), updated_at: now, deleted_at: null };
@@ -317,15 +685,14 @@
             await putRecord("work_periods", id, payload, "");
           }
         }
-        state.error = "";
-        state.status = "Guardado na conta.";
+        return { ok: true };
       } catch (error) {
-        state.error = error.message;
+        return { ok: false, error: error.message };
       }
-      render();
     }
 
-    function renderKm(app) {
+    /* ------- Quilómetros ------- */
+    function renderKm(main) {
       const dates = monthDays(state.year, state.month);
       const prefix = `${state.year}-${String(state.month).padStart(2, "0")}`;
       const fallback = todayISO().startsWith(prefix) ? todayISO() : dates[0];
@@ -340,43 +707,32 @@
       const shown = dates.filter(date => byDate("mileage_readings", date).length || byDate("fuel_entries", date).length || byDate("day_notes", date).length);
       if (!shown.length) box.append(p("Ainda não há leituras deste mês na conta.", "muted"));
       else {
-        const table = div("km-table");
-        table.append(div("km-head", text("Data"), text("Ao pegar na carrinha"), text("Km finais · automático"), text("Percorridos"), text("Notas do dia")));
-        for (const date of shown) table.append(kmRow(date));
-        box.append(table);
+        box.append(div("km-head", text("Data"), text("Ao pegar na carrinha"), text("Km finais · automático"), text("Percorridos"), text("Notas do dia")));
+        for (const date of shown) box.append(kmRow(date));
       }
-      app.append(box);
+      main.append(box);
     }
-
     function kmRow(date) {
       const reading = byDate("mileage_readings", date)[0];
-      const next = rows("mileage_readings").map(record => record.payload).filter(item => !item.deleted_at && item.date > date).sort((a, b) => a.date.localeCompare(b.date))[0];
-      const line = div("day");
+      const next = rows("mileage_readings").map(r => r.payload).filter(i => !i.deleted_at && i.date > date).sort((a, b) => a.date.localeCompare(b.date))[0];
+      const line = div("km-row");
       const metrics = div("km-metrics");
-      const day = document.createElement("div");
-      day.append(Object.assign(document.createElement("div"), { className: "km-day", textContent: dayNumber(date) }));
-      day.append(p(weekdayName(date), "muted"));
+      const day = div("");
+      day.append(div("km-day", text(dayNumber(date))), p(weekdayName(date), "muted"));
       metrics.append(day);
       metrics.append(text(reading ? String(reading.payload.kilometers) : "—"));
-      const finals = document.createElement("div");
+      const finals = div("");
       if (reading && next && Number(next.kilometers) >= Number(reading.payload.kilometers)) {
         const distance = Number(next.kilometers) - Number(reading.payload.kilometers);
-        finals.append(Object.assign(document.createElement("div"), { className: "km-final", textContent: groupKm(next.kilometers) }));
-        finals.append(p(`Leitura de ${next.date.split("-").reverse().join("/")}`, "muted"));
-        metrics.append(finals);
-        metrics.append(Object.assign(document.createElement("div"), { className: "km-final", textContent: `${distance} km` }));
+        finals.append(div("km-final", text(groupKm(next.kilometers))), p(`Leitura de ${next.date.split("-").reverse().join("/")}`, "muted"));
+        metrics.append(finals, div("km-final", text(`${distance} km`)));
       } else if (reading && next) {
         finals.append(p("Leitura a descer. Não entra na distância.", "muted"));
-        metrics.append(finals);
-        metrics.append(text("—"));
+        metrics.append(finals, text("—"));
       } else if (reading) {
         finals.append(p("A aguardar próxima leitura", "muted"));
-        metrics.append(finals);
-        metrics.append(text("—"));
-      } else {
-        metrics.append(text("—"));
-        metrics.append(text("—"));
-      }
+        metrics.append(finals, text("—"));
+      } else { metrics.append(text("—"), text("—")); }
       const notes = div("span");
       const noteRows = byDate("day_notes", date);
       const fuels = byDate("fuel_entries", date);
@@ -392,11 +748,7 @@
       line.append(metrics);
       return line;
     }
-
-    function groupKm(value) {
-      return String(value).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
-    }
-
+    function groupKm(value) { return String(value).replace(/\B(?=(\d{3})+(?!\d))/g, " "); }
     function fuelCard(record) {
       const fuel = record.payload;
       const box = div("fuel");
@@ -404,22 +756,18 @@
       if (fuel.liters_milli != null) parts.push(`${formatMilli(fuel.liters_milli)} L`);
       if (fuel.pump_milli != null) parts.push(`${formatMilli(fuel.pump_milli)} €/L`);
       if (!parts.length) parts.push(`${fuel.odometer_km} km`);
-      box.append(text("Abastecimento — " + parts.join(" · ")));
+      box.append(p("Abastecimento — " + parts.join(" · "), "ftitle"));
       const gross = fuel.liters_milli != null && fuel.pump_milli != null ? Math.round((fuel.liters_milli * fuel.pump_milli + 5000) / 10000) : null;
       const detail = [];
       if (gross != null) detail.push(`Valor final: ${formatCents(gross)}`);
       if (fuel.paid_cents != null) detail.push(`Pago: ${formatCents(fuel.paid_cents)}`);
-      if (gross != null && fuel.paid_cents != null) {
-        const discount = gross - fuel.paid_cents;
-        detail.push(discount >= 0 ? `Desconto: ${formatCents(discount)}` : `Acima da bomba: ${formatCents(-discount)}`);
-      }
+      if (gross != null && fuel.paid_cents != null) { const d = gross - fuel.paid_cents; detail.push(d >= 0 ? `Desconto: ${formatCents(d)}` : `Acima da bomba: ${formatCents(-d)}`); }
       if (fuel.liters_milli && fuel.paid_cents != null) detail.push(`Efetivo: ${formatMilli(Math.round((fuel.paid_cents * 10000 + fuel.liters_milli / 2) / fuel.liters_milli))} €/L`);
       if (fuel.tank_full) detail.push("Depósito cheio");
       if (detail.length) box.append(p(detail.join(" · "), "muted"));
       box.append(button("Eliminar", "danger", () => removeFuel(record)));
       return box;
     }
-
     async function saveReading(date, kilometers) {
       const value = Number(kilometers);
       if (!date || !Number.isInteger(value) || value < 0) { state.error = "A leitura tem de ser um número inteiro. Zero é válido."; render(); return; }
@@ -427,18 +775,12 @@
         await ensureSession();
         const existing = byDate("mileage_readings", date)[0];
         const now = stamp();
-        if (existing) {
-          await putRecord("mileage_readings", existing.entity_id, { ...existing.payload, kilometers: value, updated_at: now, deleted_at: null }, existing.revision);
-        } else {
-          const id = crypto.randomUUID();
-          await putRecord("mileage_readings", id, { id, date, kilometers: value, created_at: now, updated_at: now, deleted_at: null }, "");
-        }
-        state.error = "";
-        state.status = "Guardado na conta.";
+        if (existing) await putRecord("mileage_readings", existing.entity_id, { ...existing.payload, kilometers: value, updated_at: now, deleted_at: null }, existing.revision);
+        else { const id = crypto.randomUUID(); await putRecord("mileage_readings", id, { id, date, kilometers: value, created_at: now, updated_at: now, deleted_at: null }, ""); }
+        state.error = ""; state.status = "Alterações guardadas na conta.";
       } catch (error) { state.error = error.message; }
       render();
     }
-
     async function saveFuel(date, odometer, liters, paid, pump) {
       const km = Number(odometer);
       if (!Number.isInteger(km)) { state.error = "O conta-quilómetros tem de ser um número inteiro."; render(); return; }
@@ -449,25 +791,17 @@
         const litersMilli = milli(liters, 1000);
         const paidCents = milli(paid, 100);
         const effective = litersMilli && paidCents != null ? Math.round((paidCents * 10000 + litersMilli / 2) / litersMilli) : null;
-        await putRecord("fuel_entries", id, {
-          id, date, clock: null, odometer_km: km,
-          liters_milli: litersMilli, pump_milli: milli(pump, 1000), discounted_milli: effective,
-          paid_cents: paidCents, paid_is_manual: 1,
-          tank_full: 1, created_at: now, updated_at: now, deleted_at: null
-        }, "");
-        state.error = "";
-        state.status = "Guardado na conta.";
+        await putRecord("fuel_entries", id, { id, date, clock: null, odometer_km: km, liters_milli: litersMilli, pump_milli: milli(pump, 1000), discounted_milli: effective, paid_cents: paidCents, paid_is_manual: 1, tank_full: 1, created_at: now, updated_at: now, deleted_at: null }, "");
+        state.error = ""; state.status = "Alterações guardadas na conta.";
       } catch (error) { state.error = error.message; }
       render();
     }
-
     async function removeFuel(record) {
       try {
         await ensureSession();
         const now = stamp();
         await putRecord("fuel_entries", record.entity_id, { ...record.payload, deleted_at: now, updated_at: now }, record.revision);
-        state.status = "Guardado na conta.";
-        state.error = "";
+        state.status = "Alterações guardadas na conta."; state.error = "";
       } catch (error) { state.error = error.message; }
       render();
     }
@@ -476,16 +810,17 @@
       try {
         await loadRecords();
         state.error = "";
-        state.status = state.records.length ? "Lido da conta." : "A conta ainda não tem registos. No iPhone, entra com este email e sincroniza.";
+        state.status = state.records.length ? "Dados carregados da conta." : "A conta ainda não tem registos. No iPhone, entra com este email e sincroniza.";
       } catch (error) {
         state.error = error.message;
         if (String(error.message).includes("sessão")) saveSession(null);
       }
       render();
     }
+    function signOut() { saveSession(null); state.records = []; state.status = ""; state.error = ""; state.drafts = {}; state.rowStatus = {}; render(); }
 
-    function signOut() { saveSession(null); state.records = []; state.status = ""; state.error = ""; render(); }
-
+    /* ------- tempo e números ------- */
+    function isCurrentMonth() { const now = todayISO(); return Number(now.slice(0, 4)) === state.year && Number(now.slice(5, 7)) === state.month; }
     function lisbonInstant(iso, clock, plusDays) {
       const [year, month, day] = iso.split("-").map(Number);
       const [hour, minute] = clock.split(":").map(Number);
@@ -494,61 +829,43 @@
       return new Date(utcGuess.getTime() - offset).toISOString().replace(/\.\d{3}Z$/, "Z");
     }
     function lisbonOffset(date) {
-      const name = new Intl.DateTimeFormat("en-US", { timeZone: "Europe/Lisbon", timeZoneName: "shortOffset" }).formatToParts(date).find(part => part.type === "timeZoneName")?.value || "GMT";
+      const name = new Intl.DateTimeFormat("en-US", { timeZone: "Europe/Lisbon", timeZoneName: "shortOffset" }).formatToParts(date).find(p => p.type === "timeZoneName")?.value || "GMT";
       const match = name.match(/GMT([+-])(\d{1,2})(?::(\d{2}))?/);
       if (!match) return 0;
       const sign = match[1] === "-" ? -1 : 1;
       return sign * (Number(match[2]) * 60 + Number(match[3] || 0)) * 60000;
     }
-    function milli(text, scale) {
-      const value = String(text || "").trim().replace(",", ".");
-      if (!value) return null;
-      const number = Number(value);
-      if (!Number.isFinite(number)) return null;
-      return Math.round(number * scale);
-    }
-    function formatMilli(value) { return `${Math.trunc(value / 1000)},${String(Math.abs(value % 1000)).padStart(3, "0")}`; }
-    function formatCents(value) { return `${Math.trunc(value / 100)},${String(Math.abs(value % 100)).padStart(2, "0")} €`; }
+    function milli(t, scale) { const v = String(t || "").trim().replace(",", "."); if (!v) return null; const n = Number(v); if (!Number.isFinite(n)) return null; return Math.round(n * scale); }
+    function formatMilli(v) { return `${Math.trunc(v / 1000)},${String(Math.abs(v % 1000)).padStart(3, "0")}`; }
+    function formatCents(v) { return `${Math.trunc(v / 100)},${String(Math.abs(v % 100)).padStart(2, "0")} €`; }
 
-    function card(...nodes) { const element = document.createElement("section"); element.className = "card"; element.append(...nodes.flat()); return element; }
-    function h2(value) { const element = document.createElement("h2"); element.textContent = value; return element; }
-    function p(value, className) { const element = document.createElement("p"); element.textContent = value; if (className) element.className = className; return element; }
-    function text(value, className) { return p(value, className); }
-    function div(className, ...nodes) { const element = document.createElement("div"); element.className = className; element.append(...nodes.flat()); return element; }
+    /* ------- DOM helpers ------- */
+    function el(tag, textContent) { const e = document.createElement(tag); if (textContent != null) e.textContent = textContent; return e; }
+    function card(...nodes) { const e = el("section"); e.className = "card"; e.append(...nodes.flat()); return e; }
+    function h2(v) { return el("h2", v); }
+    function p(v, className) { const e = el("p"); e.textContent = v; if (className) e.className = className; return e; }
+    function text(v, className) { return p(v, className); }
+    function div(className, ...nodes) { const e = el("div"); if (className) e.className = className; e.append(...nodes.flat()); return e; }
+    function spanIcon(ch) { const s = el("span", ch); s.className = "ic"; return s; }
+    function iconButton(label, action) { const b = el("button", label); b.className = "iconbtn"; b.type = "button"; b.addEventListener("click", action); return b; }
     function button(title, className, action, pressed) {
-      const element = document.createElement("button");
-      element.type = "button";
-      element.className = className;
-      element.textContent = title;
-      if (pressed) element.setAttribute("aria-pressed", "true");
-      element.addEventListener("click", action);
-      return element;
+      const b = el("button", title); b.type = "button"; b.className = className;
+      if (pressed) b.setAttribute("aria-pressed", "true");
+      b.addEventListener("click", action); return b;
     }
+    function button2(title, action, pressed) { const b = el("button", title); b.type = "button"; if (pressed) b.setAttribute("aria-pressed", "true"); b.addEventListener("click", action); return b; }
     function select(title, options, value) {
-      const field = document.createElement("select");
-      for (const option of options) {
-        const element = document.createElement("option");
-        element.value = option.value;
-        element.textContent = option.label;
-        field.append(element);
-      }
+      const field = el("select");
+      for (const o of options) { const op = el("option", o.label); op.value = o.value; field.append(op); }
       field.value = value || "";
-      const label = document.createElement("label");
-      label.append(document.createTextNode(title), field);
+      const label = el("label"); label.className = "field"; label.append(document.createTextNode(title), field);
       return { label, field };
     }
     function input(type, title, value) {
-      const field = document.createElement("input");
-      field.type = type;
-      field.value = value || "";
+      const field = el("input"); field.type = type; field.value = value || "";
       if (type === "number") field.inputMode = "numeric";
-      const label = document.createElement("label");
-      label.append(document.createTextNode(title), field);
+      const label = el("label"); label.className = "field"; label.append(document.createTextNode(title), field);
       return { label, field };
-    }
-    function statusLine() {
-      const element = p(state.error || state.status, state.error ? "warn status" : "ok status");
-      return element;
     }
 
     if (state.session) refresh(); else render();
