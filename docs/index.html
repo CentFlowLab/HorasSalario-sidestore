@@ -384,9 +384,10 @@
       for (const note of noteRows) notes.append(text(note.payload.body || ""));
       for (const fuel of fuels) notes.append(fuelCard(fuel));
       const liters = input("text", "Litros", "");
-      const paid = input("text", "Valor pago €", "");
+      const pump = input("text", "Valor por litro €/L", "");
+      const paid = input("text", "Valor pago € (com desconto)", "");
       const odometer = input("number", "Conta-quilómetros", reading ? String(reading.payload.kilometers) : "");
-      notes.append(div("row", odometer.label, liters.label, paid.label, button("Abastecimento", "plain", () => saveFuel(date, odometer.field.value, liters.field.value, paid.field.value))));
+      notes.append(div("row", liters.label, pump.label, paid.label, odometer.label, button("Abastecimento", "plain", () => saveFuel(date, odometer.field.value, liters.field.value, paid.field.value, pump.field.value))));
       metrics.append(notes);
       line.append(metrics);
       return line;
@@ -399,11 +400,22 @@
     function fuelCard(record) {
       const fuel = record.payload;
       const box = div("fuel");
-      const parts = [`${fuel.odometer_km} km`];
+      const parts = [];
       if (fuel.liters_milli != null) parts.push(`${formatMilli(fuel.liters_milli)} L`);
-      if (fuel.paid_cents != null) parts.push(`${formatCents(fuel.paid_cents)} pagos`);
-      if (fuel.tank_full) parts.push("Depósito cheio");
+      if (fuel.pump_milli != null) parts.push(`${formatMilli(fuel.pump_milli)} €/L`);
+      if (!parts.length) parts.push(`${fuel.odometer_km} km`);
       box.append(text("Abastecimento — " + parts.join(" · ")));
+      const gross = fuel.liters_milli != null && fuel.pump_milli != null ? Math.round((fuel.liters_milli * fuel.pump_milli + 5000) / 10000) : null;
+      const detail = [];
+      if (gross != null) detail.push(`Valor final: ${formatCents(gross)}`);
+      if (fuel.paid_cents != null) detail.push(`Pago: ${formatCents(fuel.paid_cents)}`);
+      if (gross != null && fuel.paid_cents != null) {
+        const discount = gross - fuel.paid_cents;
+        detail.push(discount >= 0 ? `Desconto: ${formatCents(discount)}` : `Acima da bomba: ${formatCents(-discount)}`);
+      }
+      if (fuel.liters_milli && fuel.paid_cents != null) detail.push(`Efetivo: ${formatMilli(Math.round((fuel.paid_cents * 10000 + fuel.liters_milli / 2) / fuel.liters_milli))} €/L`);
+      if (fuel.tank_full) detail.push("Depósito cheio");
+      if (detail.length) box.append(p(detail.join(" · "), "muted"));
       box.append(button("Eliminar", "danger", () => removeFuel(record)));
       return box;
     }
@@ -427,17 +439,20 @@
       render();
     }
 
-    async function saveFuel(date, odometer, liters, paid) {
+    async function saveFuel(date, odometer, liters, paid, pump) {
       const km = Number(odometer);
       if (!Number.isInteger(km)) { state.error = "O conta-quilómetros tem de ser um número inteiro."; render(); return; }
       try {
         await ensureSession();
         const now = stamp();
         const id = crypto.randomUUID();
+        const litersMilli = milli(liters, 1000);
+        const paidCents = milli(paid, 100);
+        const effective = litersMilli && paidCents != null ? Math.round((paidCents * 10000 + litersMilli / 2) / litersMilli) : null;
         await putRecord("fuel_entries", id, {
           id, date, clock: null, odometer_km: km,
-          liters_milli: milli(liters, 1000), pump_milli: null, discounted_milli: null,
-          paid_cents: milli(paid, 100), paid_is_manual: milli(paid, 100) == null ? 0 : 1,
+          liters_milli: litersMilli, pump_milli: milli(pump, 1000), discounted_milli: effective,
+          paid_cents: paidCents, paid_is_manual: 1,
           tank_full: 1, created_at: now, updated_at: now, deleted_at: null
         }, "");
         state.error = "";
