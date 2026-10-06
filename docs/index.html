@@ -30,13 +30,21 @@
 
     /* Shell com navegação lateral compacta */
     .shell { display: grid; grid-template-columns: 232px 1fr; min-height: 100vh; }
-    .sidebar { background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; gap: 4px; padding: 20px 14px; position: sticky; top: 0; height: 100vh; }
+    .sidebar { background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; gap: 4px; padding: 20px 14px; position: sticky; top: 0; height: 100vh; overflow: auto; }
     .brand { display: flex; align-items: center; gap: 10px; padding: 4px 8px 16px; }
     .brand .logo { width: 34px; height: 34px; border-radius: 9px; background: #0b0d12; overflow: hidden; padding: 0; }
     .brand .logo img { width: 100%; height: 100%; object-fit: cover; display: block; }
     .brand .eyebrow { color: var(--muted); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
     .brand strong { font-size: 15px; }
+    .nav { display: flex; flex-direction: column; gap: 2px; }
     .nav button { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: transparent; border: 0; border-radius: 10px; padding: 10px 12px; color: var(--muted); font-weight: 600; }
+    .tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: stretch; margin: 0 0 16px; }
+    .tile { background: var(--card); border-radius: 16px; padding: 16px; min-height: 118px; display: flex; flex-direction: column; gap: 6px; }
+    .tile .k { color: var(--muted); font-size: 13px; }
+    .tile b { font-size: 22px; line-height: 1.2; }
+    .tile .s { color: var(--muted); font-size: 12px; margin-top: auto; }
+    .item { background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 4px; }
+    .item + .item { margin-top: 8px; }
     .nav button:hover { background: rgba(255,255,255,.04); color: var(--text); }
     .nav button[aria-pressed="true"] { background: rgba(124,219,135,.14); color: var(--green); }
     .nav .ic { width: 18px; text-align: center; }
@@ -82,7 +90,7 @@
 
     /* Folha em grelha */
     .folha { display: flex; flex-direction: column; }
-    .fhead, .frow { display: grid; grid-template-columns: 62px 78px 78px 78px 78px 60px 64px minmax(130px, 1fr); gap: 8px; align-items: center; }
+    .fhead, .frow { display: grid; grid-template-columns: minmax(52px, 0.7fr) repeat(4, minmax(0, 1fr)) minmax(54px, 0.7fr) minmax(58px, 0.75fr) minmax(108px, 1.2fr); gap: 8px; align-items: center; }
     .fhead { padding: 6px 10px; color: var(--muted); font-size: 11px; letter-spacing: .04em; text-transform: uppercase; }
     .fhead .grp { grid-column: span 2; }
     .frow { padding: 7px 10px; border-radius: 12px; border: 1px solid transparent; }
@@ -97,7 +105,7 @@
     .daycell .wd { font-size: 11px; color: var(--muted); }
     .cell { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
     .cell .clab { display: none; font-size: 11px; color: var(--muted); }
-    .cell input { background: var(--bg); border: 1px solid var(--line); border-radius: 9px; padding: 9px; width: 100%; text-align: center; letter-spacing: .02em; }
+    .cell input { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 0 8px; height: 42px; width: 100%; text-align: center; letter-spacing: .02em; }
     .cell input:focus { outline: none; border-color: var(--green); }
     .cell input:disabled { opacity: .4; }
     .tcell { font-variant-numeric: tabular-nums; font-weight: 600; }
@@ -146,7 +154,7 @@
       .side-foot .who { max-width: 150px; }
     }
     @media (max-width: 800px) {
-      .chead { flex-wrap: wrap; }
+      .tiles { grid-template-columns: 1fr; }
       .chead h1 { font-size: 22px; }
       .monthsel { flex: 1; justify-content: space-between; }
       .km-head { display: none; }
@@ -329,8 +337,16 @@
 
     /* ------- layout principal ------- */
     const SECTIONS = [
+      { id: "resumo", label: "Resumo", icon: "⌂", title: "Resumo", eyebrow: "Visão do mês" },
       { id: "horas", label: "Folha", icon: "▦", title: "Folha mensal", eyebrow: "Controlo mensal" },
-      { id: "km", label: "Quilómetros", icon: "⬍", title: "Quilómetros", eyebrow: "Registo da carrinha" }
+      { id: "km", label: "Quilómetros", icon: "⬍", title: "Quilómetros", eyebrow: "Registo da carrinha" },
+      { id: "fornecimentos", label: "Fornecimentos", icon: "▢", title: "Fornecimentos", eyebrow: "Materiais e destinos" },
+      { id: "planeador", label: "Planeador", icon: "▦", title: "Planeador", eyebrow: "Semana" },
+      { id: "tarefas", label: "Tarefas", icon: "✓", title: "Tarefas", eyebrow: "O que falta fazer" },
+      { id: "fornecedores", label: "Fornecedores", icon: "◇", title: "Fornecedores", eyebrow: "Contactos" },
+      { id: "salario", label: "Salário", icon: "€", title: "Salário", eyebrow: "Valores gravados" },
+      { id: "relatorios", label: "Relatórios", icon: "↗", title: "Relatórios", eyebrow: "Documento do mês" },
+      { id: "definicoes", label: "Definições", icon: "⚙", title: "Definições", eyebrow: "Conta" }
     ];
     const MONTHS = ["", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 
@@ -406,7 +422,15 @@
       if (state.importPlan) main.append(importCard());
 
       if (state.tab === "horas") renderHours(main);
-      else renderKm(main);
+      else if (state.tab === "km") renderKm(main);
+      else if (state.tab === "resumo") renderResumo(main);
+      else if (state.tab === "fornecimentos") renderSupplies(main);
+      else if (state.tab === "planeador") renderPlanner(main);
+      else if (state.tab === "tarefas") renderTasks(main);
+      else if (state.tab === "fornecedores") renderSuppliers(main);
+      else if (state.tab === "salario") renderSalary(main);
+      else if (state.tab === "relatorios") renderReports(main);
+      else renderSettings(main);
       return main;
     }
 
@@ -470,7 +494,9 @@
         if (!file) return;
         try {
           const text = await file.text();
-          state.importPlan = buildImportPlan(JSON.parse(text));
+          const object = JSON.parse(String(text).replace(/^\uFEFF/, ""));
+          state.importRaw = object;
+          state.importPlan = buildImportPlan(object);
           state.error = "";
           state.status = "Pré-visualização pronta. Nada foi gravado.";
         } catch (error) {
@@ -484,7 +510,7 @@
     function buildImportPlan(object) {
       const format = object && object.format;
       if (format !== "horas-e-salario-export" && format !== "horas-e-salario-ios") {
-        throw new Error("O ficheiro não é uma exportação reconhecida.");
+        throw new Error(format ? `O ficheiro é «${format}» e esta página não o reconhece.` : "O ficheiro não é uma exportação reconhecida.");
       }
       const tables = object.tables || {};
       const days = (tables.work_days || []).filter(row => !row.deleted_at);
@@ -576,10 +602,13 @@
             stored += 1;
           }
         }
+        const raw = state.importRaw;
         state.importPlan = null;
+        state.importRaw = null;
+        const extra = await importCompanion(raw);
         state.status = "Alterações guardadas na conta.";
         await refresh();
-        state.status = `Alterações guardadas na conta. ${stored} períodos importados${skipped ? `, ${skipped} dias em edição mantidos` : ""}.`;
+        state.status = `Alterações guardadas na conta. ${stored} períodos importados${extra ? `, ${extra} outros registos` : ""}${skipped ? `, ${skipped} dias em edição mantidos` : ""}.`;
       } catch (error) {
         state.error = error.message;
         state.status = "";
@@ -623,6 +652,227 @@
           created_at: period.created_at || now, updated_at: now, deleted_at: null
         }, "");
       }
+    }
+
+    async function importCompanion(object) {
+      if (!object || !object.tables) return 0;
+      const entities = ["mileage_readings", "fuel_entries", "day_notes", "tasks", "task_items", "locations", "units", "materials", "destinations", "suppliers", "supply_deliveries", "supply_items", "stock_movements", "work_plan"];
+      let added = 0;
+      for (const entity of entities) {
+        for (const row of object.tables[entity] || []) {
+          if (!row || !row.id || row.deleted_at) continue;
+          if (state.records.some(r => r.entity === entity && r.entity_id === row.id)) continue;
+          const payload = { ...row };
+          if (!payload.updated_at) payload.updated_at = payload.created_at || stamp();
+          try {
+            await putRecord(entity, row.id, payload, "");
+            added += 1;
+          } catch (error) {
+            const message = String(error.message || "");
+            if (message.includes("404") || message.includes("entidade") || message.includes("PGRST")) break;
+            throw error;
+          }
+        }
+      }
+      return added;
+    }
+
+    function tile(k, value, caption) {
+      const node = div("tile");
+      node.append(p(k, "k"), el("b", value), p(caption, "s"));
+      return node;
+    }
+    function named(entity, id) {
+      if (!id) return "—";
+      const row = rows(entity).find(r => r.entity_id === id);
+      return row?.payload?.name || "—";
+    }
+    function monthPrefix() { return `${state.year}-${String(state.month).padStart(2, "0")}`; }
+    function monthKilometers() {
+      const prefix = monthPrefix();
+      const list = rows("mileage_readings")
+        .map(r => ({ date: r.payload.date, km: Number(r.payload.kilometers) }))
+        .filter(r => r.date && Number.isFinite(r.km))
+        .sort((a, b) => a.date.localeCompare(b.date));
+      let total = 0;
+      for (let i = 0; i < list.length - 1; i += 1) {
+        if (!String(list[i].date).startsWith(prefix)) continue;
+        const distance = list[i + 1].km - list[i].km;
+        if (distance > 0) total += distance;
+      }
+      return total;
+    }
+    function settingsRow() { return rows("settings")[0]?.payload || {}; }
+    function emptyNote(text) { return p(text, "muted"); }
+
+    function renderResumo(main) {
+      const asOf = isCurrentMonth() ? todayISO() : null;
+      const days = monthDays(state.year, state.month).filter(d => d >= EMPLOYMENT_START && (!asOf || d <= asOf));
+      let worked = 0, balance = 0, workedDays = 0, incomplete = 0;
+      for (const date of days) {
+        const result = dayResult(date);
+        if (result.state === "incompleto" || !result.counts) incomplete += 1;
+        if (result.counts) { worked += result.worked; balance += result.delta; }
+        if (result.worked > 0 && result.state !== "folga" && result.state !== "falta") workedDays += 1;
+      }
+      const grid = div("tiles");
+      grid.append(
+        tile("Horas este mês", hoursText(worked), `${workedDays} dias com registo`),
+        tile("Saldo de horas extra", signedHours(balance), "6h40/dia · domingo à parte"),
+        tile("Quilómetros", `${monthKilometers()} km`, "Percorridos no mês"),
+        tile("Incompletos", String(incomplete), "Precisam de atenção")
+      );
+      main.append(grid);
+      const box = card(h2("Últimos dias"));
+      const recent = days.slice(-7);
+      if (!recent.length) box.append(emptyNote("Ainda não há dias neste mês."));
+      for (const date of recent) {
+        const result = dayResult(date);
+        const item = div("item");
+        item.append(el("strong", `${dayNumber(date)} ${weekdayName(date)}`), p(`${hoursText(result.worked)} · ${signedHours(result.delta)}`, "muted"));
+        box.append(item);
+      }
+      main.append(box);
+    }
+
+    function renderSupplies(main) {
+      const prefix = monthPrefix();
+      const deliveries = rows("supply_deliveries").filter(r => String(r.payload.date || "").startsWith(prefix));
+      const grid = div("tiles");
+      grid.append(
+        tile("Fornecimentos", String(deliveries.length), "Neste mês"),
+        tile("Materiais", String(rows("materials").length), "Na conta"),
+        tile("Destinos", String(rows("destinations").length), "Na conta"),
+        tile("Movimentos", String(rows("stock_movements").filter(r => String(r.payload.date || "").startsWith(prefix)).length), "Stock do mês")
+      );
+      main.append(grid);
+      const box = card(h2("Registos"));
+      if (!deliveries.length) box.append(emptyNote("Ainda não há fornecimentos neste mês. Entram pela conta, iguais aos do iPhone."));
+      for (const delivery of deliveries.sort((a, b) => String(a.payload.date).localeCompare(String(b.payload.date)))) {
+        const items = rows("supply_items").filter(r => r.payload.delivery_id === delivery.entity_id);
+        const item = div("item");
+        item.append(el("strong", named("destinations", delivery.payload.destination_id)));
+        item.append(p(br(delivery.payload.date) + (delivery.payload.note ? ` · ${delivery.payload.note}` : ""), "muted"));
+        for (const line of items) {
+          item.append(p(`${named("materials", line.payload.material_id)} · ${(Number(line.payload.quantity_milli) / 1000).toFixed(3)}`, "muted"));
+        }
+        box.append(item);
+      }
+      main.append(box);
+    }
+
+    function renderPlanner(main) {
+      const days = monthDays(state.year, state.month).filter(d => d >= EMPLOYMENT_START);
+      const box = card(h2("Turnos do mês"));
+      if (!rows("work_plan").length && !rows("locations").length) box.append(emptyNote("Ainda não há turnos nem restaurantes nesta conta."));
+      for (const date of days) {
+        const slots = rows("work_plan").filter(r => r.payload.date === date);
+        if (!slots.length) continue;
+        const lunch = slots.find(r => r.payload.slot === "almoco");
+        const night = slots.find(r => r.payload.slot === "noite");
+        const item = div("item");
+        item.append(el("strong", `${dayNumber(date)} ${weekdayName(date)}`));
+        item.append(p(`Almoço: ${lunch ? named("locations", lunch.payload.location_id) : "Sem turno"} · Noite: ${night ? named("locations", night.payload.location_id) : "Sem turno"}`, "muted"));
+        box.append(item);
+      }
+      if (box.children.length === 1) box.append(emptyNote("Este mês ainda não tem turnos planeados."));
+      main.append(box);
+    }
+
+    function renderTasks(main) {
+      const tasks = rows("tasks").slice().sort((a, b) => String(a.payload.due_date || "9999").localeCompare(String(b.payload.due_date || "9999")));
+      const open = tasks.filter(r => !r.payload.done);
+      const done = tasks.filter(r => r.payload.done);
+      const grid = div("tiles");
+      grid.append(tile("Por fazer", String(open.length), "Tarefas abertas"), tile("Concluídas", String(done.length), "Na conta"));
+      main.append(grid);
+      const box = card(h2("Lista"));
+      if (!tasks.length) box.append(emptyNote("Ainda não há tarefas nesta conta."));
+      for (const task of tasks) {
+        const item = div("item");
+        item.append(el("strong", task.payload.title || "Sem título"));
+        item.append(p(`${task.payload.done ? "Concluída" : "Por fazer"}${task.payload.due_date ? ` · ${br(task.payload.due_date)}` : ""}`, "muted"));
+        box.append(item);
+      }
+      main.append(box);
+    }
+
+    function renderSuppliers(main) {
+      const people = rows("suppliers");
+      const box = card(h2("Fornecedores"));
+      if (!people.length) box.append(emptyNote("Ainda não há fornecedores nesta conta."));
+      const grid = div("tiles");
+      for (const person of people) {
+        const node = div("tile");
+        node.append(el("strong", person.payload.name || "Sem nome"));
+        node.append(p(person.payload.material_type || "Sem tipo", "s"));
+        node.append(p([person.payload.phone, person.payload.email].filter(Boolean).join(" · ") || "Sem contacto", "muted"));
+        grid.append(node);
+      }
+      if (people.length) box.append(grid);
+      main.append(box);
+    }
+
+    function renderSalary(main) {
+      const settings = settingsRow();
+      const grid = div("tiles");
+      grid.append(
+        tile("Salário base", settings.monthly_base_salary_cents == null ? "por apurar" : formatCents(Number(settings.monthly_base_salary_cents)), "Gravado na conta"),
+        tile("Hora extra", settings.overtime_hourly_rate_cents == null ? "por apurar" : formatCents(Number(settings.overtime_hourly_rate_cents)), "Valor hora extra"),
+        tile("Refeição", settings.meal_allowance_cents == null ? "por apurar" : formatCents(Number(settings.meal_allowance_cents)), "Subsídio"),
+        tile("Empresa", settings.company_name || "por preencher", settings.person_name || "Sem nome")
+      );
+      main.append(grid);
+      main.append(card(h2("Estimativa"), p("O líquido detalhado, com IRS e segurança social, calcula-se na app com as mesmas regras. Esta página mostra os valores já gravados na conta e não inclui esses dados nos relatórios.", "muted")));
+    }
+
+    function renderReports(main) {
+      const box = card(h2("Documento do mês"));
+      box.append(p("Horas, quilómetros e fornecimentos deste mês, sem salário. O PDF da app passou a ter cabeçalho, linhas alinhadas e assinatura. Aqui podes imprimir o mesmo mês.", "muted"));
+      box.append(div("row", button("Imprimir este mês", "green", printMonth)));
+      main.append(box);
+    }
+    function printMonth() {
+      const prefix = monthPrefix();
+      const days = monthDays(state.year, state.month).filter(d => d >= EMPLOYMENT_START);
+      const lines = days.map(date => {
+        const stored = storedFields(date);
+        const result = dayResult(date);
+        return `<tr><td>${br(date)} ${weekdayName(date)}</td><td>${stored.e1 || "—"}</td><td>${stored.s1 || "—"}</td><td>${stored.e2 || "—"}</td><td>${stored.s2 || "—"}</td><td>${hoursText(result.worked)}</td><td>${signedHours(result.delta)}</td></tr>`;
+      }).join("");
+      const km = rows("mileage_readings").filter(r => String(r.payload.date || "").startsWith(prefix));
+      const supplies = rows("supply_deliveries").filter(r => String(r.payload.date || "").startsWith(prefix));
+      const html = `<!DOCTYPE html><html lang="pt"><head><meta charset="utf-8"><title>Nexo ${MONTHS[state.month]} ${state.year}</title>
+        <style>body{font-family:Helvetica,Arial,sans-serif;color:#111;margin:32px}h1{font-size:22px;margin:0}p{color:#444}table{width:100%;border-collapse:collapse;margin-top:16px}th,td{border-bottom:1px solid #ddd;text-align:left;padding:6px 4px;font-size:12px}th{font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:#555}.sign{margin-top:48px;display:flex;gap:48px}.sign div{flex:1;border-top:1px solid #222;padding-top:8px}</style></head>
+        <body><p>NEXO</p><h1>Folha de ponto · ${MONTHS[state.month]} ${state.year}</h1><p>${settingsRow().company_name || ""} ${settingsRow().person_name || ""}</p>
+        <table><thead><tr><th>Dia</th><th>Entrada 1</th><th>Saída 1</th><th>Entrada 2</th><th>Saída 2</th><th>Horas</th><th>Saldo</th></tr></thead><tbody>${lines}</tbody></table>
+        <h2>Quilómetros</h2><p>${km.map(r => `${br(r.payload.date)} · ${r.payload.kilometers} km`).join("<br>") || "Sem leituras neste mês."}</p>
+        <h2>Fornecimentos</h2><p>${supplies.map(r => `${br(r.payload.date)} · ${named("destinations", r.payload.destination_id)}`).join("<br>") || "Sem fornecimentos neste mês."}</p>
+        <div class="sign"><div>Assinatura do trabalhador</div><div>Assinatura da empresa</div></div></body></html>`;
+      const frame = document.createElement("iframe");
+      frame.style.position = "fixed";
+      frame.style.right = "0";
+      frame.style.bottom = "0";
+      frame.style.width = "0";
+      frame.style.height = "0";
+      frame.style.border = "0";
+      document.body.append(frame);
+      frame.contentDocument.open();
+      frame.contentDocument.write(html);
+      frame.contentDocument.close();
+      frame.contentWindow.focus();
+      frame.contentWindow.print();
+      setTimeout(() => frame.remove(), 1000);
+    }
+
+    function renderSettings(main) {
+      const settings = settingsRow();
+      const box = card(h2("Identificação"));
+      box.append(p(settings.company_name || "Empresa por preencher", "muted"));
+      box.append(p(settings.person_name || "Nome por preencher", "muted"));
+      box.append(p(settings.company_nif ? `NIF ${settings.company_nif}` : "NIF por preencher", "muted"));
+      box.append(p("A importação JSON fica em Importar JSON, no fundo da barra. A gravação só acontece depois de confirmares, e 02/09 pede 22:00 ou 00:00.", "muted"));
+      main.append(box);
     }
 
     /* ------- Folha ------- */
