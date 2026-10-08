@@ -169,6 +169,25 @@
       .tcell { grid-column: auto; }
       .tcell::before { content: attr(data-label) " "; color: var(--muted); font-weight: 500; font-size: 11px; display: block; }
       .actions { grid-column: 1 / -1; justify-content: space-between; }
+      .dsum { grid-column: 1 / -1; }
+    }
+    .dsum { grid-column: 1 / -1; font-size: 11px; line-height: 1.35; color: var(--muted); }
+    .dsum .ok { color: var(--green); }
+    .dsum .warn { color: var(--amber); }
+    .mais-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 22px 16px; padding: 8px 4px 24px; }
+    .mais-item { background: transparent; border: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; color: var(--text); padding: 6px 0; }
+    .mais-icon { width: 72px; height: 72px; border-radius: 22px; display: grid; place-items: center; font-size: 28px; color: #fff; font-weight: 700; box-shadow: 0 8px 18px rgba(0,0,0,.28); }
+    .mais-item span { font-size: 12px; font-weight: 650; }
+    .mat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; margin-top: 12px; }
+    .mat-card { background: var(--bg); border: 1px solid var(--line); border-radius: 14px; padding: 12px; display: flex; flex-direction: column; gap: 4px; }
+    .mat-card menu, .mat-card .row { margin-top: 8px; }
+    .tabbar { display: none; }
+    @media (max-width: 800px) {
+      body { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
+      .tabbar { display: grid; grid-template-columns: repeat(5, 1fr); position: fixed; left: 0; right: 0; bottom: 0; background: var(--panel); border-top: 1px solid var(--line); padding: 6px 4px calc(6px + env(safe-area-inset-bottom)); z-index: 20; }
+      .tabbar button { background: transparent; border: 0; color: var(--muted); font-size: 11px; font-weight: 650; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 2px; }
+      .tabbar button[aria-pressed="true"] { color: var(--green); }
+      .tabbar .ic { font-size: 16px; }
     }
   </style>
 </head>
@@ -190,7 +209,10 @@
       rowStatus: {},     // { date: {kind, text} }
       savingDate: null,
       importPlan: null,  // pré-visualização; só grava depois de confirmares
-      importBusy: false
+      importBusy: false,
+      materialForm: null,
+      showArchivedMaterials: false,
+      includeNotes: false
     };
 
     /* ------- sessão e utilidades ------- */
@@ -339,8 +361,9 @@
     const SECTIONS = [
       { id: "resumo", label: "Resumo", icon: "⌂", title: "Resumo", eyebrow: "Visão do mês" },
       { id: "horas", label: "Folha", icon: "▦", title: "Folha mensal", eyebrow: "Controlo mensal" },
-      { id: "km", label: "Quilómetros", icon: "⬍", title: "Quilómetros", eyebrow: "Registo da carrinha" },
+      { id: "km", label: "Km", icon: "⬍", title: "Quilómetros", eyebrow: "Registo da carrinha" },
       { id: "fornecimentos", label: "Fornecimentos", icon: "▢", title: "Fornecimentos", eyebrow: "Materiais e destinos" },
+      { id: "mais", label: "Mais", icon: "⋯", title: "Mais", eyebrow: "Outras secções" },
       { id: "planeador", label: "Planeador", icon: "▦", title: "Planeador", eyebrow: "Semana" },
       { id: "tarefas", label: "Tarefas", icon: "✓", title: "Tarefas", eyebrow: "O que falta fazer" },
       { id: "fornecedores", label: "Fornecedores", icon: "◇", title: "Fornecedores", eyebrow: "Contactos" },
@@ -348,12 +371,25 @@
       { id: "relatorios", label: "Relatórios", icon: "↗", title: "Relatórios", eyebrow: "Documento do mês" },
       { id: "definicoes", label: "Definições", icon: "⚙", title: "Definições", eyebrow: "Conta" }
     ];
+    const TABS = ["resumo", "horas", "km", "fornecimentos", "mais"];
+    const MORE = [
+      { id: "planeador", label: "Planeador", icon: "▦", color: "#f26b61" },
+      { id: "tarefas", label: "Tarefas", icon: "✓", color: "#59c778" },
+      { id: "fornecedores", label: "Fornecedores", icon: "▢", color: "#f29e2e" },
+      { id: "salario", label: "Salário", icon: "€", color: "#38b76f" },
+      { id: "relatorios", label: "Relatórios", icon: "↗", color: "#639eeb" },
+      { id: "definicoes", label: "Definições", icon: "⚙", color: "#8a93a3" }
+    ];
     const MONTHS = ["", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 
     function render() {
       const root = document.getElementById("root");
       root.replaceChildren();
-      if (!config.url.startsWith("https://") || !config.key || config.key.includes("service_role") || config.key.includes("sb_secret_")) {
+      if (location.hash === "#demo") {
+        if (!state.session) state.session = { email: "demo@nexo.local", userID: "demo", accessToken: "demo" };
+        if (!state.records.length) state.records = demoRecords();
+        if (!state.year) { state.year = 2026; state.month = 10; }
+      } else if (!config.url.startsWith("https://") || !config.key || config.key.includes("service_role") || config.key.includes("sb_secret_")) {
         root.append(centered(card(p("Esta página ainda não tem o projeto da conta. Abre a app no iPhone."))));
         return;
       }
@@ -363,7 +399,7 @@
 
       const shell = div("shell");
       shell.append(sidebar(), content());
-      root.append(shell);
+      root.append(shell, tabBar());
     }
 
     function centered(node) {
@@ -389,7 +425,7 @@
       bar.append(brand);
 
       const nav = div("nav");
-      for (const sec of SECTIONS) {
+      for (const sec of SECTIONS.filter(item => item.id !== "mais")) {
         const b = button2(`${sec.label}`, () => { state.tab = sec.id; render(); }, state.tab === sec.id);
         b.prepend(spanIcon(sec.icon));
         nav.append(b);
@@ -430,8 +466,39 @@
       else if (state.tab === "fornecedores") renderSuppliers(main);
       else if (state.tab === "salario") renderSalary(main);
       else if (state.tab === "relatorios") renderReports(main);
+      else if (state.tab === "mais") renderMais(main);
       else renderSettings(main);
       return main;
+    }
+
+    function tabBar() {
+      const bar = div("tabbar");
+      for (const id of TABS) {
+        const sec = SECTIONS.find(s => s.id === id);
+        const active = state.tab === id || (id === "mais" && MORE.some(item => item.id === state.tab));
+        const b = button2(sec.label, () => { state.tab = id; render(); }, active);
+        b.prepend(spanIcon(sec.icon));
+        bar.append(b);
+      }
+      return bar;
+    }
+
+    function renderMais(main) {
+      const box = card(h2("Mais"));
+      box.append(p("Abre diretamente a secção. O painel fecha ao escolheres outra área da barra.", "muted"));
+      const grid = div("mais-grid");
+      for (const item of MORE) {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "mais-item";
+        const icon = div("mais-icon", text(item.icon));
+        icon.style.background = item.color;
+        b.append(icon, el("span", item.label));
+        b.addEventListener("click", () => { state.tab = item.id; render(); });
+        grid.append(b);
+      }
+      box.append(grid);
+      main.append(box);
     }
 
     function statusBar() {
@@ -738,14 +805,32 @@
     function renderSupplies(main) {
       const prefix = monthPrefix();
       const deliveries = rows("supply_deliveries").filter(r => String(r.payload.date || "").startsWith(prefix));
+      const showArchived = !!state.showArchivedMaterials;
+      const materials = rows("materials").filter(r => showArchived || !r.payload.archived_at);
       const grid = div("tiles");
       grid.append(
         tile("Fornecimentos", String(deliveries.length), "Neste mês"),
-        tile("Materiais", String(rows("materials").length), "Na conta"),
+        tile("Materiais", String(materials.filter(r => !r.payload.archived_at).length), "Na conta"),
         tile("Destinos", String(rows("destinations").length), "Na conta"),
         tile("Movimentos", String(rows("stock_movements").filter(r => String(r.payload.date || "").startsWith(prefix)).length), "Stock do mês")
       );
       main.append(grid);
+
+      const catalog = card(h2("Materiais e destinos"));
+      catalog.append(p("Criar um material não cria stock nem um fornecimento. O mesmo identificador fica na conta para o iPhone.", "muted"));
+      catalog.append(div("row",
+        button("Adicionar material", "green", () => { state.materialForm = { name: "", unit: "", minimum: "", newUnit: "" }; render(); }),
+        button(showArchived ? "Ocultar arquivados" : "Mostrar arquivados", "plain", () => { state.showArchivedMaterials = !showArchived; render(); })
+      ));
+      if (state.materialForm) catalog.append(materialForm());
+      if (!materials.length) catalog.append(emptyNote("Ainda não há materiais neste catálogo."));
+      const matGrid = div("mat-grid");
+      for (const material of materials.sort((a, b) => String(a.payload.name).localeCompare(String(b.payload.name)))) {
+        matGrid.append(materialCard(material));
+      }
+      catalog.append(matGrid);
+      main.append(catalog);
+
       const box = card(h2("Registos"));
       if (!deliveries.length) box.append(emptyNote("Ainda não há fornecimentos neste mês. Entram pela conta, iguais aos do iPhone."));
       for (const delivery of deliveries.sort((a, b) => String(a.payload.date).localeCompare(String(b.payload.date)))) {
@@ -759,6 +844,106 @@
         box.append(item);
       }
       main.append(box);
+    }
+
+    function materialCard(material) {
+      const unit = named("units", material.payload.usual_unit_id);
+      const cardNode = div("mat-card");
+      cardNode.append(el("strong", material.payload.name || "Sem nome"));
+      cardNode.append(p(unit === "—" ? "Sem unidade" : unit, "muted"));
+      if (material.payload.archived_at) cardNode.append(p("Arquivado", "muted"));
+      const actions = div("row");
+      actions.append(button("Editar", "plain", () => {
+        state.materialForm = {
+          id: material.entity_id,
+          name: material.payload.name || "",
+          unit: material.payload.usual_unit_id || "",
+          minimum: material.payload.minimum_milli ? String(Number(material.payload.minimum_milli) / 1000) : "",
+          newUnit: "",
+          revision: material.revision
+        };
+        render();
+      }));
+      if (material.payload.archived_at) {
+        actions.append(button("Reativar", "plain", () => archiveMaterial(material, false)));
+      } else {
+        actions.append(button("Arquivar", "danger", () => archiveMaterial(material, true)));
+      }
+      cardNode.append(actions);
+      return cardNode;
+    }
+
+    function materialForm() {
+      const form = state.materialForm;
+      const name = input("text", "Nome", form.name);
+      const units = rows("units");
+      const unit = select("Unidade habitual", [{ value: "", label: "Escolher unidade" }, ...units.map(u => ({ value: u.entity_id, label: u.payload.name }))], form.unit);
+      const newUnit = input("text", "Nova unidade", form.newUnit);
+      const minimum = input("text", "Stock mínimo (opcional)", form.minimum);
+      const box = div("item");
+      box.append(el("strong", form.id ? "Editar material" : "Adicionar material"));
+      box.append(name.label, unit.label);
+      box.append(div("row", newUnit.label, button("Adicionar unidade", "plain", () => addUnit(newUnit.field.value))));
+      box.append(minimum.label);
+      box.append(div("row",
+        button("Guardar material", "green", () => saveMaterial(name.field.value, unit.field.value, minimum.field.value)),
+        button("Cancelar", "plain", () => { state.materialForm = null; render(); })
+      ));
+      return box;
+    }
+
+    async function addUnit(name) {
+      const trimmed = String(name || "").trim();
+      if (!trimmed) return;
+      try {
+        await ensureSession();
+        const now = stamp();
+        const id = crypto.randomUUID();
+        await putRecord("units", id, { id, name: trimmed, archived_at: null, updated_at: now }, "");
+        if (state.materialForm) state.materialForm.unit = id;
+        state.status = "Unidade guardada na conta.";
+        state.error = "";
+      } catch (error) { state.error = error.message; }
+      render();
+    }
+
+    async function saveMaterial(name, unitID, minimum) {
+      const trimmed = String(name || "").trim();
+      if (!trimmed) { state.error = "O material precisa de um nome."; render(); return; }
+      try {
+        await ensureSession();
+        const now = stamp();
+        const milli = minimum ? Math.round(Number(String(minimum).replace(",", ".")) * 1000) : null;
+        const existing = state.materialForm?.id ? rows("materials").find(r => r.entity_id === state.materialForm.id) : null;
+        const id = existing?.entity_id || crypto.randomUUID();
+        const payload = {
+          ...(existing?.payload || {}),
+          id,
+          name: trimmed,
+          usual_unit_id: unitID || null,
+          minimum_milli: milli && milli > 0 ? milli : null,
+          archived_at: existing?.payload.archived_at || null,
+          deleted_at: null,
+          updated_at: now
+        };
+        if (!existing) payload.created_at = now;
+        await putRecord("materials", id, payload, existing?.revision || "");
+        state.materialForm = null;
+        state.status = "Material guardado na conta. Não foi criado stock nem fornecimento.";
+        state.error = "";
+      } catch (error) { state.error = error.message; }
+      render();
+    }
+
+    async function archiveMaterial(material, archive) {
+      try {
+        await ensureSession();
+        const now = stamp();
+        await putRecord("materials", material.entity_id, { ...material.payload, archived_at: archive ? now : null, updated_at: now }, material.revision);
+        state.status = archive ? "Material arquivado. O histórico mantém-se." : "Material reativado.";
+        state.error = "";
+      } catch (error) { state.error = error.message; }
+      render();
     }
 
     function renderPlanner(main) {
@@ -828,27 +1013,97 @@
 
     function renderReports(main) {
       const box = card(h2("Documento do mês"));
-      box.append(p("Horas, quilómetros e fornecimentos deste mês, sem salário. O PDF da app passou a ter cabeçalho, linhas alinhadas e assinatura. Aqui podes imprimir o mesmo mês.", "muted"));
+      box.append(p("Horas, quilómetros e fornecimentos deste mês, sem salário. Cada secção começa numa página nova. As assinaturas ficam só no fim.", "muted"));
+      const notes = document.createElement("label");
+      notes.className = "field";
+      const check = document.createElement("input");
+      check.type = "checkbox";
+      check.checked = !!state.includeNotes;
+      check.addEventListener("change", () => { state.includeNotes = check.checked; });
+      notes.append(check, document.createTextNode(" Incluir notas de conferência"));
+      box.append(notes);
       box.append(div("row", button("Imprimir este mês", "green", printMonth)));
       main.append(box);
     }
     function printMonth() {
       const prefix = monthPrefix();
+      const monthLabel = `${MONTHS[state.month]} ${state.year}`;
+      const settings = settingsRow();
+      const identity = [
+        settings.company_name ? `Empresa: ${settings.company_name}` : "",
+        settings.company_nif ? `NIF: ${settings.company_nif}` : "",
+        settings.person_name ? `Trabalhador: ${settings.person_name}` : ""
+      ].filter(Boolean).join(" · ");
       const days = monthDays(state.year, state.month).filter(d => d >= EMPLOYMENT_START);
-      const lines = days.map(date => {
+      const asOf = isCurrentMonth() ? todayISO() : null;
+      let body = "";
+      let currentWeek = null;
+      for (const date of days) {
+        const wk = mondayOnOrBefore(date);
+        if (wk !== currentWeek) {
+          currentWeek = wk;
+          const weekDays = days.filter(d => mondayOnOrBefore(d) === wk);
+          let worked = 0, target = 0, balance = 0;
+          for (const d of weekDays) {
+            if (asOf && d > asOf) continue;
+            const r = dayResult(d);
+            if (weekday(d) !== 7 && d >= EMPLOYMENT_START) target += DAILY_REF;
+            if (r.counts) { worked += r.worked; balance += r.delta; }
+          }
+          body += `<tr class="week"><td colspan="9">Semana de ${br(wk)} a ${br(addDays(wk, 6))} · Trabalhado ${hoursText(worked)} · Referência ${hoursText(target)} · Saldo ${signedHours(balance)}</td></tr>`;
+        }
         const stored = storedFields(date);
         const result = dayResult(date);
-        return `<tr><td>${br(date)} ${weekdayName(date)}</td><td>${stored.e1 || "—"}</td><td>${stored.s1 || "—"}</td><td>${stored.e2 || "—"}</td><td>${stored.s2 || "—"}</td><td>${hoursText(result.worked)}</td><td>${signedHours(result.delta)}</td></tr>`;
-      }).join("");
-      const km = rows("mileage_readings").filter(r => String(r.payload.date || "").startsWith(prefix));
-      const supplies = rows("supply_deliveries").filter(r => String(r.payload.date || "").startsWith(prefix));
-      const html = `<!DOCTYPE html><html lang="pt"><head><meta charset="utf-8"><title>Nexo ${MONTHS[state.month]} ${state.year}</title>
-        <style>body{font-family:Helvetica,Arial,sans-serif;color:#111;margin:32px}h1{font-size:22px;margin:0}p{color:#444}table{width:100%;border-collapse:collapse;margin-top:16px}th,td{border-bottom:1px solid #ddd;text-align:left;padding:6px 4px;font-size:12px}th{font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:#555}.sign{margin-top:48px;display:flex;gap:48px}.sign div{flex:1;border-top:1px solid #222;padding-top:8px}</style></head>
-        <body><p>NEXO</p><h1>Folha de ponto · ${MONTHS[state.month]} ${state.year}</h1><p>${settingsRow().company_name || ""} ${settingsRow().person_name || ""}</p>
-        <table><thead><tr><th>Dia</th><th>Entrada 1</th><th>Saída 1</th><th>Entrada 2</th><th>Saída 2</th><th>Horas</th><th>Saldo</th></tr></thead><tbody>${lines}</tbody></table>
-        <h2>Quilómetros</h2><p>${km.map(r => `${br(r.payload.date)} · ${r.payload.kilometers} km`).join("<br>") || "Sem leituras neste mês."}</p>
-        <h2>Fornecimentos</h2><p>${supplies.map(r => `${br(r.payload.date)} · ${named("destinations", r.payload.destination_id)}`).join("<br>") || "Sem fornecimentos neste mês."}</p>
-        <div class="sign"><div>Assinatura do trabalhador</div><div>Assinatura da empresa</div></div></body></html>`;
+        const first = stored.list[0];
+        const second = stored.list[1];
+        const exit1 = first ? (first.payload.ends_next_day ? `${first.payload.end_clock} (+1 dia)` : first.payload.end_clock) : "—";
+        const exit2 = second ? (second.payload.ends_next_day ? `${second.payload.end_clock} (+1 dia)` : second.payload.end_clock) : "—";
+        const pause = first && second && !first.payload.ends_next_day ? hoursText(minuteOfDay(second.payload.start_clock) - minuteOfDay(first.payload.end_clock)) : "—";
+        const hours = (result.state === "folga" || result.state === "falta" || result.state === "porPreencher" || result.state === "incompleto") ? "—" : hoursText(result.worked);
+        const saldo = (!asOf || date <= asOf) && result.state !== "porPreencher" && result.state !== "incompleto" ? signedHours(result.delta) : "—";
+        body += `<tr><td>${br(date)} ${weekdayName(date).slice(0, 3)}</td><td>${stored.e1 || "—"}</td><td>${exit1}</td><td>${stored.e2 || "—"}</td><td>${exit2}</td><td>${pause}</td><td>${hours}</td><td>${saldo}</td><td>${result.state}</td></tr>`;
+      }
+      const kmRows = rows("mileage_readings").filter(r => String(r.payload.date || "").startsWith(prefix)).sort((a, b) => String(a.payload.date).localeCompare(String(b.payload.date)));
+      const kmBody = kmRows.map(r => {
+        const date = r.payload.date;
+        const next = kmRows.map(x => x.payload).find(x => x.date > date);
+        const distance = next && Number(next.kilometers) >= Number(r.payload.kilometers) ? `${Number(next.kilometers) - Number(r.payload.kilometers)} km` : "—";
+        const noteRows = byDate("day_notes", date).map(n => n.payload.body);
+        const fuels = byDate("fuel_entries", date).map(f => {
+          const p = [];
+          p.push(f.payload.clock ? `Abastecimento às ${f.payload.clock}` : "Abastecimento");
+          if (f.payload.liters_milli != null) p.push(`${(Number(f.payload.liters_milli) / 1000).toFixed(3)} L`);
+          if (f.payload.paid_cents != null) p.push(`${(Number(f.payload.paid_cents) / 100).toFixed(2)} €`);
+          return p.join(" · ");
+        });
+        return `<tr><td>${br(date)}</td><td>${r.payload.kilometers} km</td><td>${next ? next.kilometers + " km" : "—"}</td><td>${distance}</td><td>${[...noteRows, ...fuels].join(" | ") || "—"}</td></tr>`;
+      }).join("") || `<tr><td colspan="5">Sem leituras neste período.</td></tr>`;
+      const notes = state.includeNotes ? byDateNotes(prefix).map(n => `<p>${br(n.payload.date)}: ${escapeHtml(n.payload.body)}</p>`).join("") : "";
+      const html = `<!DOCTYPE html><html lang="pt"><head><meta charset="utf-8"><title>Nexo ${monthLabel}</title>
+        <style>
+          @page { size: A4; margin: 16mm; }
+          body{font-family:Helvetica,Arial,sans-serif;color:#1f1f1f;margin:0;background:#fff}
+          h1{font-size:18px;margin:0 0 4px}
+          .brand{color:#2f7a43;font-weight:700;letter-spacing:.08em;font-size:11px}
+          .meta{color:#555;font-size:12px;margin:0 0 12px}
+          table{width:100%;border-collapse:collapse;margin-top:8px}
+          th,td{border-bottom:1px solid #ddd;text-align:left;padding:5px 4px;font-size:10px;vertical-align:top}
+          th{font-size:9px;letter-spacing:.04em;text-transform:uppercase;color:#555}
+          thead{display:table-header-group}
+          tr.week td{background:#f3f3f3;font-weight:700;font-size:10px}
+          .section{page-break-before:always}
+          .section:first-child{page-break-before:auto}
+          .sign{margin-top:36px;display:flex;gap:48px;page-break-inside:avoid}
+          .sign div{flex:1;border-top:1px solid #222;padding-top:8px;font-size:12px}
+        </style></head>
+        <body>
+        <section class="section"><div class="brand">NEXO</div><h1>FOLHA DE PONTO</h1><p class="meta">${monthLabel}<br>${identity}</p>
+        <table><thead><tr><th>Dia</th><th>Entrada 1</th><th>Saída 1</th><th>Entrada 2</th><th>Saída 2</th><th>Intervalo</th><th>Horas</th><th>Saldo</th><th>Estado</th></tr></thead><tbody>${body}</tbody></table>
+        ${notes ? `<h2>Notas de conferência</h2>${notes}` : ""}</section>
+        <section class="section"><div class="brand">NEXO</div><h1>QUILÓMETROS</h1><p class="meta">${monthLabel}<br>${identity}</p>
+        <table><thead><tr><th>Data</th><th>Ao pegar</th><th>Km finais</th><th>Percorridos</th><th>Notas</th></tr></thead><tbody>${kmBody}</tbody></table></section>
+        <div class="sign"><div>Assinatura do trabalhador</div><div>Assinatura da empresa</div></div>
+        </body></html>`;
       const frame = document.createElement("iframe");
       frame.style.position = "fixed";
       frame.style.right = "0";
@@ -863,6 +1118,12 @@
       frame.contentWindow.focus();
       frame.contentWindow.print();
       setTimeout(() => frame.remove(), 1000);
+    }
+    function byDateNotes(prefix) {
+      return rows("day_notes").filter(r => String(r.payload.date || "").startsWith(prefix));
+    }
+    function escapeHtml(value) {
+      return String(value || "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
     }
 
     function renderSettings(main) {
@@ -1005,9 +1266,66 @@
       actions.append(rowStatus, saveBtn);
       row.append(actions);
 
+      const preview = dayHoursPreview(date, vals, result);
+      if (preview) {
+        const sum = div("dsum");
+        sum.innerHTML = preview.html;
+        row.append(sum);
+      }
+
       row._refs = { fields, stored, saveBtn, rowStatus, locked };
       paintRowStatus(date, row);
       return row;
+    }
+
+    function dayHoursPreview(date, vals, storedResult) {
+      const { day } = periodsOf(date);
+      if (day?.payload.is_day_off) return { html: `<span>Folga · Referência: ${hoursText(weekday(date) === 7 ? 0 : DAILY_REF)} · Saldo: ${signedHours(storedResult.delta)}</span>` };
+      if (day?.payload.is_absence) return { html: `<span>Falta · Referência: ${hoursText(weekday(date) === 7 ? 0 : DAILY_REF)} · Saldo: ${signedHours(storedResult.delta)}</span>` };
+      const clocks = [vals.e1, vals.s1, vals.e2, vals.s2].map(v => String(v || "").trim());
+      if (clocks.every(v => !v)) return null;
+      const parts = [];
+      const periods = [];
+      let incomplete = false;
+      let invalid = false;
+      for (let i = 0; i < 2; i += 1) {
+        const startRaw = clocks[i * 2];
+        const endRaw = clocks[i * 2 + 1];
+        if (!startRaw && !endRaw) continue;
+        const label = `${i + 1}.º período`;
+        const start = normalizeClock(startRaw);
+        const end = normalizeClock(endRaw);
+        if (!startRaw || !endRaw) {
+          incomplete = true;
+          const open = date === todayISO() && startRaw && !endRaw && start;
+          parts.push(`${label}: ${open ? "Em curso" : "Por completar"}`);
+          continue;
+        }
+        if (!start || !end) { invalid = true; parts.push(`${label}: hora inválida`); continue; }
+        const startMin = minuteOfDay(start);
+        let endMin = minuteOfDay(end);
+        const overnight = endMin <= startMin;
+        if (overnight) endMin += 1440;
+        periods.push({ start, end, overnight, minutes: endMin - startMin });
+        parts.push(`${label}: ${hoursText(endMin - startMin)}${overnight ? " (+1 dia)" : ""}`);
+      }
+      const dirty = rowDirty(date, { e1: { value: vals.e1 }, s1: { value: vals.s1 }, e2: { value: vals.e2 }, s2: { value: vals.s2 } });
+      const cls = invalid || incomplete ? "warn" : "ok";
+      if (invalid) return { html: `<span class="${cls}">${parts.join(" · ")}<br>Horas inválidas${dirty ? " · pré-visualização por guardar" : ""}</span>` };
+      if (incomplete) return { html: `<span class="${cls}">${parts.join(" · ")}<br>${parts.join("").includes("Em curso") ? "Em curso" : "Por completar"}${dirty ? " · pré-visualização por guardar" : ""}</span>` };
+      if (periods.length === 2 && periods[0].start && periods[1].start && minuteOfDay(periods[1].start) < (minuteOfDay(periods[0].end) + (periods[0].overnight ? 1440 : 0))) {
+        return { html: `<span class="warn">${parts.join(" · ")}<br>Períodos sobrepostos</span>` };
+      }
+      const worked = periods.reduce((sum, p) => sum + p.minutes, 0);
+      const pause = periods.length === 2 && !periods[0].overnight ? minuteOfDay(periods[1].start) - minuteOfDay(periods[0].end) : null;
+      const sunday = weekday(date) === 7;
+      const reference = sunday ? 0 : DAILY_REF;
+      const saldo = sunday ? worked : worked - reference;
+      const status = sunday ? "Horas de domingo" : (saldo > 0 ? "Acima da referência" : (saldo < 0 ? "Em falta" : "Referência cumprida"));
+      const totals = sunday
+        ? `Horas de domingo: ${hoursText(worked)} · Referência: 0h00 · Saldo: ${signedHours(saldo)}`
+        : `Trabalhado: ${hoursText(worked)} · Referência: ${hoursText(reference)} · Saldo: ${signedHours(saldo)}`;
+      return { html: `<span class="${saldo < 0 ? "warn" : "ok"}">${parts.join(" · ")}${pause != null && pause >= 0 ? `<br>Pausa: ${hoursText(pause)}` : ""}<br>${totals} · ${status}${dirty ? " · pré-visualização por guardar" : ""}</span>` };
     }
 
     function stateChip(result, isToday) {
@@ -1034,6 +1352,12 @@
       // escrever limpa um estado de erro/sucesso anterior dessa linha
       if (state.rowStatus[date] && state.rowStatus[date].kind !== "saving") delete state.rowStatus[date];
       paintRowStatus(date, row);
+      const preview = dayHoursPreview(date, currentDraftFromFields(fields), dayResult(date));
+      let sum = row.querySelector(".dsum");
+      if (preview) {
+        if (!sum) { sum = div("dsum"); row.append(sum); }
+        sum.innerHTML = preview.html;
+      } else if (sum) sum.remove();
     }
     function paintRowStatus(date, row) {
       const { saveBtn, rowStatus } = row._refs;
@@ -1233,7 +1557,35 @@
       render();
     }
 
+    function demoRecords() {
+      const now = "2026-10-08T12:00:00Z";
+      const day = (id, date, off, absence) => ({ entity: "work_days", entity_id: id, revision: now, payload: { id, date, is_day_off: off ? 1 : 0, is_absence: absence ? 1 : 0, sunday_unlocked: 1, notes: "", created_at: now, updated_at: now } });
+      const period = (id, dayId, start, end, next) => ({ entity: "work_periods", entity_id: id, revision: now, payload: { id, work_day_id: dayId, start_clock: start, end_clock: end, ends_next_day: next ? 1 : 0, created_at: now, updated_at: now } });
+      return [
+        { entity: "settings", entity_id: "default", revision: now, payload: { id: "default", company_name: "Nyah Lounge", company_nif: "123456789", person_name: "Emanuel" } },
+        day("d1", "2026-10-01", 0, 0),
+        period("p1", "d1", "08:30", "15:00", 0),
+        period("p2", "d1", "18:00", "22:00", 0),
+        day("d2", "2026-10-02", 0, 0),
+        period("p3", "d2", "18:30", "00:00", 1),
+        day("d5", "2026-10-05", 0, 0),
+        period("p4", "d5", "08:30", "15:00", 0),
+        period("p5", "d5", "18:00", "22:00", 0),
+        day("d6", "2026-10-06", 0, 0),
+        period("p6", "d6", "08:00", "12:00", 0),
+        day("d7", "2026-10-07", 0, 0),
+        period("p7", "d7", "08:30", "", 0),
+        { entity: "units", entity_id: "caixa", revision: now, payload: { id: "caixa", name: "caixa" } },
+        { entity: "materials", entity_id: "gelo", revision: now, payload: { id: "gelo", name: "Gelo em cubos", usual_unit_id: "caixa", minimum_milli: 5000 } },
+        { entity: "destinations", entity_id: "norte", revision: now, payload: { id: "norte", name: "Restaurante Norte" } },
+        { entity: "mileage_readings", entity_id: "k1", revision: now, payload: { id: "k1", date: "2026-10-01", kilometers: 160000 } },
+        { entity: "mileage_readings", entity_id: "k2", revision: now, payload: { id: "k2", date: "2026-10-02", kilometers: 160180 } },
+        { entity: "fuel_entries", entity_id: "f1", revision: now, payload: { id: "f1", date: "2026-10-02", clock: "14:30", odometer_km: 160180, liters_milli: 40000, pump_milli: 1659, paid_cents: 6236 } },
+        { entity: "day_notes", entity_id: "n1", revision: now, payload: { id: "n1", date: "2026-10-01", body: "Nota longa de conferência sobre a carrinha e o turno da noite, para verificar se o PDF parte o texto com legibilidade." } }
+      ];
+    }
     async function refresh() {
+      if (location.hash === "#demo") { render(); return; }
       try {
         await loadRecords();
         state.error = "";
@@ -1295,7 +1647,9 @@
       return { label, field };
     }
 
-    if (state.session) refresh(); else render();
+    if (location.hash === "#demo") render();
+    else if (state.session) refresh();
+    else render();
   </script>
 </body>
 </html>
